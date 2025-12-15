@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { toTimestampLabel } from '../utils/textProcessing.js';
 
-export default function EntryList({ entries, onSelect, onDelete, onUpdate }) {
+export default function EntryList({ entries, activeId, onSelect, onDelete, onUpdate, onEvolve }) {
   const [editingId, setEditingId] = useState(null);
   const [draft, setDraft] = useState('');
 
@@ -17,11 +17,11 @@ export default function EntryList({ entries, onSelect, onDelete, onUpdate }) {
 
   return (
     <div className="entry-panel">
-      <h2>EchoTexto•°</h2>
-      <p className="muted">Chaque texte devient une bulle horodatée, éditable, supprimable.</p>
+      <h2>Memoire des bulles</h2>
+      <p className="muted">Chaque texte est horodaté, éditable, rejouable. Le même texte recrée le même état.</p>
       <div className="entry-list">
         {entries.map((entry) => (
-          <div key={entry.id} className="entry-card">
+          <div key={entry.id} className={`entry-card ${entry.id === activeId ? 'active' : ''}`}>
             {editingId === entry.id ? (
               <>
                 <textarea value={draft} onChange={(e) => setDraft(e.target.value)} />
@@ -49,13 +49,18 @@ export default function EntryList({ entries, onSelect, onDelete, onUpdate }) {
                 </header>
                 <p className="text">{entry.text}</p>
                 <div className="tags">
-                  {entry.tags.map((tag) => (
+                  {entry.echoState.tags.map((tag) => (
                     <span key={tag.id}>{tag.label}</span>
                   ))}
                 </div>
-                <button className="primary slim" onClick={() => onSelect(entry)}>
-                  Résonner avec cette bulle
-                </button>
+                <div className="row">
+                  <button className="primary slim" onClick={() => onSelect(entry)}>
+                    Rejouer cette bulle
+                  </button>
+                  <button className="ghost slim" onClick={() => onEvolve(entry)}>
+                    Alimente l'état
+                  </button>
+                </div>
               </>
             )}
           </div>

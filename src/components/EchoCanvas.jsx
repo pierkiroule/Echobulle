@@ -1,98 +1,78 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef } from 'react';
+import { mulberry32, clamp } from '../core/seeded.js';
 
-const attractors = [
-  { id: 'calme', label: 'calme', color: '#7fb4ff', strength: 0.6, pos: { x: 0.2, y: 0.35 } },
-  { id: 'tension', label: 'tension', color: '#f2b6b6', strength: 1.1, pos: { x: 0.5, y: 0.15 } },
-  { id: 'mouvement', label: 'mouvement', color: '#c1f0d5', strength: 0.85, pos: { x: 0.72, y: 0.48 } },
-  { id: 'retrait', label: 'retrait', color: '#d1c8ff', strength: 0.5, pos: { x: 0.28, y: 0.75 } },
-  { id: 'elan', label: 'élan', color: '#f4e9a3', strength: 0.95, pos: { x: 0.8, y: 0.78 } },
-];
-
-export default function EchoCanvas({ tags, onMetrics, onSnapshotReady }) {
+export default function EchoCanvas({ state, onStateEvolve, onSnapshotReady }) {
   const canvasRef = useRef(null);
-  const particlesRef = useRef([]);
   const animationRef = useRef(null);
+  const particlesRef = useRef([]);
   const pointerRef = useRef({ x: 0, y: 0, active: false });
-  const calmFrames = useRef(0);
-  const [pictos, setPictos] = useState([]);
+  const fieldRef = useRef([]);
+  const liveStateRef = useRef(state);
+
+  useEffect(() => {
+    liveStateRef.current = state;
+  }, [state]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
-    if (!canvas) return;
-    const resize = () => {
-      canvas.width = canvas.clientWidth;
-      canvas.height = canvas.clientHeight;
-    };
-    resize();
-    window.addEventListener('resize', resize);
-    return () => window.removeEventListener('resize', resize);
-  }, []);
+    if (!canvas || !state) return;
+    canvas.width = canvas.clientWidth;
+    canvas.height = canvas.clientHeight;
 
-  useEffect(() => {
-    if (!tags || tags.length === 0) {
-      particlesRef.current = [];
-      setPictos([]);
-      return;
-    }
-    const canvas = canvasRef.current;
-    const { width, height } = canvas;
-    particlesRef.current = tags.map((tag, index) => ({
+    const rand = mulberry32(state.seed);
+    const count = Math.max(8, Math.floor(state.tags.length * 1.2));
+    const particles = state.tags.slice(0, count).map((tag, index) => ({
       ...tag,
-      x: (0.2 + 0.6 * Math.random()) * width,
-      y: (0.2 + 0.6 * Math.random()) * height,
-      vx: (Math.random() - 0.5) * 0.4,
-      vy: (Math.random() - 0.5) * 0.4,
-      charge: 0.4 + (index % 3) * 0.15,
+      x: (rand() * 0.6 + 0.2) * canvas.width,
+      y: (rand() * 0.6 + 0.2) * canvas.height,
+      vx: (rand() - 0.5) * (0.4 + state.flow),
+      vy: (rand() - 0.5) * (0.4 + state.flow),
+      life: 0,
+      hueShift: rand() * 0.2 + index * 0.02,
     }));
-  }, [tags]);
+    particlesRef.current = particles;
+    fieldRef.current = buildFlowField(canvas.width, canvas.height, state.seed);
+  }, [state]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
 
-    const tick = () => {
+    const draw = () => {
       const { width, height } = canvas;
       ctx.clearRect(0, 0, width, height);
-      renderBackdrop(ctx, width, height);
+      paintBackground(ctx, width, height, liveStateRef.current);
+      renderField(ctx, fieldRef.current);
 
-      const particles = particlesRef.current;
-      const pointer = pointerRef.current;
-      const metrics = evolve(particles, width, height, pointer);
-      drawAttractors(ctx, width, height);
-      drawParticles(ctx, particles);
-      drawPictos(ctx, pictos);
+      const stats = evolveParticles(particlesRef.current, fieldRef.current, pointerRef.current, liveStateRef.current, width, height);
+      renderParticles(ctx, particlesRef.current);
 
-      calmFrames.current = metrics.avgSpeed < 0.015 ? calmFrames.current + 1 : 0;
-      if (calmFrames.current > 420 && particles.length > 3) {
-        setPictos((prev) => [...prev, buildPicto(particles, width, height)]);
-        calmFrames.current = 0;
+      if (pointerRef.current.active) {
+        breathe(liveStateRef.current, onStateEvolve);
       }
 
-      onMetrics?.(metrics);
-      animationRef.current = requestAnimationFrame(tick);
+      liveStateRef.current = { ...liveStateRef.current, flow: stats.flow, tension: stats.tension };
+      animationRef.current = requestAnimationFrame(draw);
     };
 
-    animationRef.current = requestAnimationFrame(tick);
+    animationRef.current = requestAnimationFrame(draw);
     return () => cancelAnimationFrame(animationRef.current);
-  }, [pictos, onMetrics]);
-
-  const handlePointer = (e) => {
-    const rect = canvasRef.current.getBoundingClientRect();
-    pointerRef.current = {
-      x: e.clientX - rect.left,
-      y: e.clientY - rect.top,
-      active: true,
-    };
-  };
-
-  const stopPointer = () => {
-    pointerRef.current.active = false;
-  };
+  }, [onStateEvolve]);
 
   useEffect(() => {
     onSnapshotReady?.(canvasRef.current);
   }, [onSnapshotReady]);
+
+  const handlePointer = (e) => {
+    const rect = canvasRef.current.getBoundingClientRect();
+    pointerRef.current = { x: e.clientX - rect.left, y: e.clientY - rect.top, active: true };
+  };
+
+  const stopPointer = () => {
+    pointerRef.current.active = false;
+    dissipate(liveStateRef.current, onStateEvolve);
+  };
 
   return (
     <div className="canvas-shell">
@@ -105,160 +85,137 @@ export default function EchoCanvas({ tags, onMetrics, onSnapshotReady }) {
         onMouseLeave={stopPointer}
       />
       <div className="attractor-legend">
-        {attractors.map((a) => (
-          <span key={a.id} style={{ color: a.color }}>
-            {a.label}
-          </span>
-        ))}
+        <span>Souffle = dispersion</span>
+        <span>Contact = tension</span>
       </div>
     </div>
   );
 }
 
-function evolve(particles, width, height, pointer) {
-  const damping = 0.985;
-  const repulsion = 18;
-  const pointerInfluence = 1200;
-
-  particles.forEach((p, index) => {
-    let fx = 0;
-    let fy = 0;
-
-    attractors.forEach((a) => {
-      const ax = a.pos.x * width;
-      const ay = a.pos.y * height;
-      const dx = ax - p.x;
-      const dy = ay - p.y;
-      const dist = Math.hypot(dx, dy) + 0.001;
-      const force = (a.strength * p.mass) / dist;
-      fx += (dx / dist) * force;
-      fy += (dy / dist) * force;
-    });
-
-    for (let j = index + 1; j < particles.length; j += 1) {
-      const other = particles[j];
-      const dx = p.x - other.x;
-      const dy = p.y - other.y;
-      const dist = Math.hypot(dx, dy) + 0.001;
-      if (dist < 120) {
-        const force = (repulsion * p.charge * other.charge) / (dist * dist);
-        const fxRep = (dx / dist) * force;
-        const fyRep = (dy / dist) * force;
-        fx += fxRep;
-        fy += fyRep;
-        other.vx -= fxRep / other.mass;
-        other.vy -= fyRep / other.mass;
-      }
+function buildFlowField(width, height, seed) {
+  const rand = mulberry32(seed * 17 + 13);
+  const cols = 24;
+  const rows = 14;
+  const field = [];
+  for (let x = 0; x < cols; x += 1) {
+    for (let y = 0; y < rows; y += 1) {
+      const angle = rand() * Math.PI * 2;
+      const strength = 0.4 + rand() * 0.8;
+      field.push({
+        x: (x / cols) * width,
+        y: (y / rows) * height,
+        vx: Math.cos(angle) * strength,
+        vy: Math.sin(angle) * strength,
+      });
     }
+  }
+  return field;
+}
+
+function evolveParticles(particles, field, pointer, state, width, height) {
+  const drift = 0.98;
+  let speedSum = 0;
+
+  particles.forEach((p) => {
+    const vector = sampleField(field, p.x, p.y);
+    p.vx = p.vx * drift + vector.vx * (0.4 + state.flow * 0.6);
+    p.vy = p.vy * drift + vector.vy * (0.4 + state.flow * 0.6);
 
     if (pointer.active) {
       const dx = p.x - pointer.x;
       const dy = p.y - pointer.y;
       const dist = Math.hypot(dx, dy) + 0.001;
-      const blow = (pointerInfluence * p.mass) / (dist * dist + 40);
-      fx += (dx / dist) * blow;
-      fy += (dy / dist) * blow;
+      const push = (state.tension + 0.2) * 140 / (dist + 30);
+      p.vx += (dx / dist) * push;
+      p.vy += (dy / dist) * push;
     }
 
-    p.vx = (p.vx + fx) * damping;
-    p.vy = (p.vy + fy) * damping;
     p.x += p.vx;
     p.y += p.vy;
+    p.life += 1;
 
-    if (p.x < 20 || p.x > width - 20) p.vx *= -1;
-    if (p.y < 20 || p.y > height - 20) p.vy *= -1;
-    p.x = Math.min(width - 10, Math.max(10, p.x));
-    p.y = Math.min(height - 10, Math.max(10, p.y));
+    if (p.x < 12 || p.x > width - 12) p.vx *= -1;
+    if (p.y < 12 || p.y > height - 12) p.vy *= -1;
+    p.x = clamp(p.x, 8, width - 8);
+    p.y = clamp(p.y, 8, height - 8);
+
+    speedSum += Math.hypot(p.vx, p.vy);
   });
 
-  const avgSpeed =
-    particles.reduce((acc, p) => acc + Math.hypot(p.vx, p.vy), 0) / Math.max(1, particles.length);
+  const avgSpeed = speedSum / Math.max(1, particles.length);
+  const flow = clamp(avgSpeed / 8, 0, 1);
+  const tension = clamp(pointer.active ? state.tension + 0.02 : state.tension * 0.995, 0, 1);
 
-  const density = Math.min(1, particles.length / 18);
-
-  return { avgSpeed, density };
+  return { flow, tension };
 }
 
-function renderBackdrop(ctx, width, height) {
-  const gradient = ctx.createRadialGradient(width / 2, height / 2, 120, width / 2, height / 2, width);
-  gradient.addColorStop(0, '#0c1020');
-  gradient.addColorStop(1, '#05070d');
+function sampleField(field, x, y) {
+  if (!field.length) return { vx: 0, vy: 0 };
+  let closest = field[0];
+  let minDist = Infinity;
+  field.forEach((node) => {
+    const dx = node.x - x;
+    const dy = node.y - y;
+    const dist = dx * dx + dy * dy;
+    if (dist < minDist) {
+      minDist = dist;
+      closest = node;
+    }
+  });
+  return closest;
+}
+
+function paintBackground(ctx, width, height, state) {
+  const gradient = ctx.createLinearGradient(0, 0, width, height);
+  gradient.addColorStop(0, 'rgba(8,12,24,0.95)');
+  gradient.addColorStop(1, 'rgba(4,6,14,0.95)');
   ctx.fillStyle = gradient;
   ctx.fillRect(0, 0, width, height);
 
-  ctx.fillStyle = 'rgba(255,255,255,0.05)';
-  for (let i = 0; i < 30; i += 1) {
-    const x = (i * 73 + 41) % width;
-    const y = (i * 131 + 97) % height;
-    ctx.beginPath();
-    ctx.arc(x, y, 0.6 + (i % 3) * 0.6, 0, Math.PI * 2);
-    ctx.fill();
+  ctx.strokeStyle = `rgba(255,255,255,${0.02 + state.entropy * 0.08})`;
+  for (let i = 0; i < 36; i += 1) {
+    const w = width * (0.25 + (i / 36) * 0.7);
+    const h = height * (0.25 + (i / 36) * 0.7);
+    ctx.strokeRect((width - w) / 2, (height - h) / 2, w, h);
   }
 }
 
-function drawAttractors(ctx, width, height) {
-  attractors.forEach((a) => {
+function renderField(ctx, field) {
+  ctx.save();
+  ctx.strokeStyle = 'rgba(255,255,255,0.04)';
+  field.forEach((node) => {
     ctx.beginPath();
-    ctx.fillStyle = `${a.color}50`;
-    ctx.strokeStyle = `${a.color}80`;
-    ctx.lineWidth = 2;
-    ctx.arc(a.pos.x * width, a.pos.y * height, 24, 0, Math.PI * 2);
-    ctx.fill();
+    ctx.arc(node.x, node.y, 1.2, 0, Math.PI * 2);
     ctx.stroke();
   });
+  ctx.restore();
 }
 
-function drawParticles(ctx, particles) {
+function renderParticles(ctx, particles) {
   particles.forEach((p) => {
+    ctx.save();
     ctx.beginPath();
     ctx.fillStyle = `${p.color}d0`;
     ctx.strokeStyle = `${p.color}60`;
-    ctx.lineWidth = 1.5;
-    ctx.arc(p.x, p.y, 10 + p.weight * 0.8, 0, Math.PI * 2);
+    ctx.lineWidth = 1.4;
+    ctx.arc(p.x, p.y, 9 + p.mass * 2, 0, Math.PI * 2);
     ctx.fill();
     ctx.stroke();
 
-    ctx.fillStyle = '#cfd8ef';
     ctx.font = '12px "Inter", system-ui';
+    ctx.fillStyle = '#d8e4ff';
     ctx.textAlign = 'center';
     ctx.fillText(p.label, p.x, p.y - 14);
-  });
-}
-
-function drawPictos(ctx, pictos) {
-  pictos.forEach((picto) => {
-    ctx.save();
-    ctx.translate(picto.x, picto.y);
-    ctx.rotate(picto.angle);
-    ctx.strokeStyle = `${picto.color}aa`;
-    ctx.lineWidth = 3;
-    ctx.beginPath();
-    ctx.rect(-picto.size / 2, -picto.size / 2, picto.size, picto.size);
-    ctx.stroke();
-
-    ctx.beginPath();
-    ctx.fillStyle = `${picto.inner}90`;
-    ctx.arc(0, 0, picto.size / 3, 0, Math.PI * 2);
-    ctx.fill();
     ctx.restore();
   });
 }
 
-function buildPicto(particles, width, height) {
-  const center = particles.reduce(
-    (acc, p) => ({ x: acc.x + p.x, y: acc.y + p.y }),
-    { x: 0, y: 0 },
-  );
-  const cx = center.x / particles.length;
-  const cy = center.y / particles.length;
-  const palette = ['#f2b6b6', '#c1f0d5', '#7fb4ff', '#f4e9a3', '#d1c8ff'];
-  return {
-    x: cx + (Math.random() - 0.5) * 40,
-    y: cy + (Math.random() - 0.5) * 40,
-    angle: Math.random() * Math.PI,
-    size: 34 + Math.random() * 22,
-    color: palette[Math.floor(Math.random() * palette.length)],
-    inner: palette[Math.floor(Math.random() * palette.length)],
-    bounds: { width, height },
-  };
+function breathe(state, onStateEvolve) {
+  const next = { ...state, flow: clamp(state.flow + 0.01, 0, 1), tension: clamp(state.tension + 0.006, 0, 1) };
+  onStateEvolve?.(next);
+}
+
+function dissipate(state, onStateEvolve) {
+  const next = { ...state, flow: clamp(state.flow * 0.95, 0, 1), tension: clamp(state.tension * 0.92, 0, 1) };
+  onStateEvolve?.(next);
 }

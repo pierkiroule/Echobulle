@@ -1,6 +1,6 @@
 # ÉchoBulle
 
-Web-app contemplative inspirée du prompt Lovable : un inconscient algorithmique local, sans IA, construit avec React + Vite.
+Dispositif génératif local : texte libre → bulle → tags → **EchoState** → rendus transmodaux (EchoReso, EchoPhoto, EchoVideo, EchoSono). Aucune IA, aucun backend.
 
 ## Démarrer
 
@@ -9,12 +9,17 @@ npm install
 npm run dev
 ```
 
-## Principes
-- Texte libre → bulle → tags (tokenisation simple, stop-words FR).
-- EchoReso•° : particules sur canvas 2D, attracteurs symboliques, interactions soufflées à la souris.
-- EchoPicto•° : fusions lentes en pictogrammes non-figuratifs.
-- EchoPhoto•° : capture PNG du canvas.
-- EchoVideo•° : enregistrement WebM du canvas.
-- EchoSono•° : nappes sonores procédurales WebAudio modulées par densité/vitesse du réseau.
+## Architecture
+- `src/core/echoState.js` : dérive un EchoState déterministe depuis le texte (seed stable, tags pondérés, densité/flux/tension/entropie/polarité).
+- `src/components/EchoCanvas.jsx` : EchoReso•°, réseau de particules influencé par le souffle/contact, modifiant l'EchoState.
+- `src/hooks/useAmbience.js` : EchoSono•°, nappes WebAudio modulées par l'état (sans IA ni API).
+- `src/hooks/useRecorder.js` : EchoVideo•° via MediaRecorder ; capture PNG via le canvas.
+- `src/hooks/useLocalEntries.js` : mémoire locale (localStorage), horodatage, rejouabilité d'une bulle.
 
-Tout fonctionne en local, sans backend ni API externe, stockage via localStorage.
+## Flux central
+Texte libre → Bulle → Extraction de tags → EchoState (unique et central) → Générateurs transmodaux :
+- **EchoPhoto•°** : export PNG du canvas.
+- **EchoVideo•°** : capture WebM/MP4 via MediaRecorder.
+- **EchoSono•°** : nappes sonores procédurales (WebAudio) mappées sur densité/flux/tension/entropie/polarité.
+
+L'utilisateur n'ordonne pas : il influence par le souffle (drag), le toucher (clic), la lenteur. Emojis absents du cœur : uniquement symboles secondaires si besoin.

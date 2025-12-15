@@ -147,6 +147,11 @@ button:hover,
   gap: 8px;
 }
 
+.entry-card.active {
+  border-color: rgba(159, 227, 189, 0.8);
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.3);
+}
+
 .entry-card header {
   display: flex;
   justify-content: space-between;
@@ -192,6 +197,20 @@ button:hover,
 .stats strong {
   display: block;
   font-size: 20px;
+}
+
+.state-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.state-cell {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  padding: 10px;
+  border-radius: 10px;
 }
 
 .canvas-shell {

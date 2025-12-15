@@ -1,12 +1,12 @@
 import { useEffect, useState } from 'react';
-import { extractTags } from '../utils/textProcessing.js';
+import { buildEchoState } from '../core/echoState.js';
 
 const STORAGE_KEY = 'echobulle:entries';
 
 const demoSeeds = [
-  'Lenteur profonde comme une marée noire, respirations alignées sur le ciel.',
-  'Murmures d’algues et étincelles cyan, un souffle de givre sur les paupières.',
-  'Des pierres chaudes roulent sous la peau, patience cosmique et pulsation basse.',
+  'Lenteur profonde, souffle lié à la marée, scintillements stables et mats.',
+  'Veille au ralenti, grains d eau suspendus, champ vibratoire discret.',
+  'Bruits filtrés comme des algues, tension douce et polarité pastel.',
 ];
 
 export function useLocalEntries() {
@@ -35,7 +35,7 @@ export function useLocalEntries() {
 
   const updateEntry = (id, text) => {
     setEntries((prev) =>
-      prev.map((item) => (item.id === id ? { ...item, text, tags: extractTags(text) } : item)),
+      prev.map((item) => (item.id === id ? { ...item, text, echoState: buildEchoState(text, item.echoState.timestamp) } : item)),
     );
   };
 
@@ -43,15 +43,20 @@ export function useLocalEntries() {
     setEntries((prev) => prev.filter((item) => item.id !== id));
   };
 
-  return { entries, addEntry, updateEntry, removeEntry };
+  const updateEchoState = (id, nextState) => {
+    setEntries((prev) => prev.map((item) => (item.id === id ? { ...item, echoState: nextState } : item)));
+  };
+
+  return { entries, addEntry, updateEntry, removeEntry, updateEchoState };
 }
 
 function buildEntry(text) {
   const now = new Date().toISOString();
+  const echoState = buildEchoState(text, now);
   return {
-    id: `entry-${now}-${Math.random().toString(36).slice(2, 6)}`,
+    id: `bulle-${echoState.seed}-${now}`,
     text,
     createdAt: now,
-    tags: extractTags(text),
+    echoState,
   };
 }
