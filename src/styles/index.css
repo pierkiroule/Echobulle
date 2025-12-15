@@ -1,0 +1,25 @@
+:root {
+  color-scheme: dark;
+  --bg: #070910;
+  --panel: #0e1324;
+  --soft: #10162b;
+  --accent: #9ec5a1;
+  --text: #e8eef7;
+  --muted: #a5aec2;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  background: radial-gradient(circle at 20% 20%, #11182f, #070910 50%), #070910;
+  color: var(--text);
+  min-height: 100vh;
+}
+
+button, textarea {
+  font-family: inherit;
+}
+
+a { color: var(--text); }
