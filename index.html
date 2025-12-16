@@ -3,11 +3,116 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>ÉchoBulle</title>
-    <link rel="icon" type="image/png" href="/favicon.png" />
+    <title>ÉchoBulle — POC transmedia local</title>
+    <style>
+      :root {
+        color-scheme: dark;
+        --bg: #0a0c10;
+        --fg: #e6e7eb;
+        --accent: #6ad5ff;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        min-height: 100vh;
+        background: radial-gradient(circle at 25% 20%, #111827, #0a0c10 50%);
+        color: var(--fg);
+        font-family: "Inter", "SF Pro Text", system-ui, -apple-system, sans-serif;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 24px;
+      }
+
+      .shell {
+        width: min(960px, 100%);
+        display: grid;
+        gap: 24px;
+        justify-items: center;
+      }
+
+      .viewport {
+        width: min(70vw, 480px);
+        aspect-ratio: 1 / 1;
+        border-radius: 50%;
+        overflow: hidden;
+        border: 2px solid rgba(255, 255, 255, 0.15);
+        box-shadow: 0 24px 80px rgba(0, 0, 0, 0.55), inset 0 0 80px rgba(106, 213, 255, 0.05);
+        background: linear-gradient(145deg, #06070b, #0f1624);
+        position: relative;
+      }
+
+      .viewport video {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        display: block;
+        filter: contrast(1.05) saturate(1.08) brightness(0.95);
+        background: #000;
+      }
+
+      .controls {
+        display: flex;
+        gap: 12px;
+        flex-wrap: wrap;
+        justify-content: center;
+      }
+
+      button {
+        appearance: none;
+        border: 1px solid rgba(255, 255, 255, 0.18);
+        color: var(--fg);
+        background: linear-gradient(135deg, rgba(106, 213, 255, 0.18), rgba(255, 255, 255, 0.03));
+        padding: 12px 18px;
+        border-radius: 999px;
+        letter-spacing: 0.03em;
+        font-size: 14px;
+        cursor: pointer;
+        transition: transform 160ms ease, border-color 160ms ease, box-shadow 160ms ease;
+      }
+
+      button:hover {
+        transform: translateY(-1px);
+        border-color: rgba(255, 255, 255, 0.36);
+        box-shadow: 0 12px 40px rgba(106, 213, 255, 0.15);
+      }
+
+      button:active {
+        transform: translateY(0);
+      }
+
+      .hint {
+        font-size: 12px;
+        opacity: 0.7;
+        text-align: center;
+        max-width: 620px;
+        line-height: 1.5;
+      }
+    </style>
   </head>
   <body>
-    <div id="root"></div>
-    <script type="module" src="/src/main.jsx"></script>
+    <div class="shell">
+      <div class="viewport" aria-label="Hublot audiovisuel">
+        <video id="echo-video" playsinline muted></video>
+      </div>
+      <div class="controls">
+        <button id="import-audio">Importer MP3</button>
+        <button id="import-video">Importer MP4</button>
+        <button id="reset-all">Stop / Reset</button>
+      </div>
+      <div class="hint">
+        Le son démarre après interaction. Charge un MP3 et un MP4 pour mixer localement et laisser tourner en boucle. Si un média
+        manque, le hublot reste silencieux ou noir.
+      </div>
+    </div>
+
+    <input id="file-audio" type="file" accept="audio/mpeg" hidden />
+    <input id="file-video" type="file" accept="video/mp4" hidden />
+
+    <script type="module" src="./main.js"></script>
   </body>
 </html>

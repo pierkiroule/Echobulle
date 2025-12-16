@@ -1,25 +1,11 @@
-# ÉchoBulle
+# ÉchoBulle — POC transmédia local
 
-Dispositif génératif local : texte libre → bulle → tags → **EchoState** → rendus transmodaux (EchoReso, EchoPhoto, EchoVideo, EchoSono). Aucune IA, aucun backend.
+Ceci est un prototype frugal pour tester le cœur multimédia d’ÉchoBulle.
+Objectif V1 : vérifier que l’audio MP3 et la vidéo MP4 tournent ensemble, en boucle, sans dépendance externe.
 
-## Démarrer
-
-```bash
-npm install
-npm run dev
-```
-
-## Architecture
-- `src/core/echoState.js` : dérive un EchoState déterministe depuis le texte (seed stable, tags pondérés, densité/flux/tension/entropie/polarité).
-- `src/components/EchoCanvas.jsx` : EchoReso•°, réseau de particules influencé par le souffle/contact, modifiant l'EchoState.
-- `src/hooks/useAmbience.js` : EchoSono•°, nappes WebAudio modulées par l'état (sans IA ni API).
-- `src/hooks/useRecorder.js` : EchoVideo•° via MediaRecorder ; capture PNG via le canvas.
-- `src/hooks/useLocalEntries.js` : mémoire locale (localStorage), horodatage, rejouabilité d'une bulle.
-
-## Flux central
-Texte libre → Bulle → Extraction de tags → EchoState (unique et central) → Générateurs transmodaux :
-- **EchoPhoto•°** : export PNG du canvas.
-- **EchoVideo•°** : capture WebM/MP4 via MediaRecorder.
-- **EchoSono•°** : nappes sonores procédurales (WebAudio) mappées sur densité/flux/tension/entropie/polarité.
-
-L'utilisateur n'ordonne pas : il influence par le souffle (drag), le toucher (clic), la lenteur. Emojis absents du cœur : uniquement symboles secondaires si besoin.
+Mode d’emploi :
+1. Ouvre `index.html` dans un navigateur mobile ou desktop.
+2. Clique sur « Importer MP3 » puis « Importer MP4 » (fichiers locaux).
+3. Les deux médias jouent en boucle dans le hublot circulaire. Le bouton « Stop / Reset » remet à zéro.
+4. Si un média manque, le hublot reste silencieux ou noir. Aucune IA, aucun réseau, aucun backend.
+5. L’export/capture sera branché plus tard : le code expose déjà les moteurs audio/vidéo pour y accrocher une capture locale.
