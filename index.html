@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>ÉchoBulle — hublot audiovisuel</title>
+    <title>ÉchoBulle — hublot hypnotique</title>
     <script type="importmap">
       {
         "imports": {
@@ -36,18 +36,14 @@
       }
 
       .shell {
-        width: min(960px, 100%);
+        width: min(760px, 100%);
         display: grid;
-        gap: 20px;
+        gap: 18px;
         justify-items: center;
       }
 
-      .editor-toggle {
-        margin-bottom: 6px;
-      }
-
       .viewport {
-        width: min(72vw, 540px);
+        width: min(72vw, 520px);
         aspect-ratio: 1 / 1;
         border-radius: 50%;
         overflow: hidden;
@@ -63,28 +59,6 @@
         width: 100%;
         height: 100%;
         display: block;
-      }
-
-      .source-list {
-        display: none;
-        gap: 10px;
-        flex-wrap: wrap;
-        justify-content: center;
-      }
-
-      .source-item {
-        padding: 8px 12px;
-        background: rgba(255, 255, 255, 0.06);
-        border-radius: 12px;
-        border: 1px solid rgba(255, 255, 255, 0.12);
-        color: var(--fg);
-        font-size: 12px;
-        cursor: pointer;
-      }
-
-      .source-item.active {
-        border-color: rgba(122, 210, 255, 0.9);
-        box-shadow: 0 12px 34px rgba(122, 210, 255, 0.18);
       }
 
       .controls {
@@ -121,35 +95,29 @@
         font-size: 12px;
         opacity: 0.76;
         text-align: center;
-        max-width: 620px;
+        max-width: 520px;
         line-height: 1.5;
       }
     </style>
   </head>
   <body>
     <div class="shell">
-      <button id="toggle-edit" class="editor-toggle">Éditer le paysage</button>
       <div class="viewport" aria-label="Hublot audiovisuel" id="viewport">
         <canvas id="echo-canvas"></canvas>
       </div>
-      <div class="source-list" id="source-list" aria-label="Sources actives"></div>
       <div class="controls">
         <button id="import-audio">Importer MP3</button>
-        <button id="import-video">Importer MP4 → bulles</button>
-        <button id="import-images">Importer images → bulles</button>
         <button id="capture">Capture PNG</button>
         <button id="reset-all">Stop / Reset</button>
       </div>
       <div class="hint">
-        Prototype frugal : tout est local. Charge un MP3, puis un MP4 ou des images : les sources sont perforées et
-        reconstituées en bulles GIF organiques. Le hublot écoute le souffle (taps / drags), les particules dérivent lentement.
-        Mode Éditeur fige le flux pour déplacer les couches, Capture exporte une image PNG du moment.
+        CosmoGraph épuré : seules des bulles circulaires dérivent doucement. Un emoji par bulle, un tag à la fois qui respire puis
+        s’efface. Un MP3 en boucle nourrit le pulse. Tap ou clique pour souffler : aucune superposition vidéo, aucun overlay
+        photo, juste une danse lente et lisible.
       </div>
     </div>
 
     <input id="file-audio" type="file" accept="audio/mpeg" hidden />
-    <input id="file-video" type="file" accept="video/mp4,video/webm" hidden />
-    <input id="file-images" type="file" accept="image/png, image/jpeg" hidden multiple />
 
     <script type="module" src="./main.js"></script>
   </body>

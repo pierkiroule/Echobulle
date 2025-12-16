@@ -1,223 +1,201 @@
-const MAX_FRAGMENTS = 7;
-const MIN_FRAGMENTS = 3;
-const FRAME_COUNT = 12;
-const EXPOSURE_MODES = ['screen', 'lighter', 'overlay', 'multiply'];
+const PALETTE = ['#8acbff', '#a3a6ff', '#ffdca8', '#f2a6ff', '#9ff3e0'];
+const BASE_RADIUS = 46;
+const TAG_RADIUS = 64;
+const FRICTION = 0.985;
+const BOUNCE_DAMPING = 0.92;
 
-function createSurface(width, height) {
-  if (typeof OffscreenCanvas !== 'undefined') {
-    return new OffscreenCanvas(width, height);
-  }
-  const canvas = document.createElement('canvas');
-  canvas.width = width;
-  canvas.height = height;
-  return canvas;
-}
-
-function randRange(min, max) {
+function randomRange(min, max) {
   return Math.random() * (max - min) + min;
 }
 
-function clamp01(v) {
-  return Math.min(1, Math.max(0, v));
-}
-
-export function perforateSource(width, height, isVideo = false) {
-  const count = Math.floor(randRange(MIN_FRAGMENTS, MAX_FRAGMENTS + 1));
-  const fragments = [];
-  for (let i = 0; i < count; i += 1) {
-    const w = randRange(width * 0.2, width * 0.55);
-    const h = randRange(height * 0.2, height * 0.55);
-    const x = randRange(width * 0.08, width - w - width * 0.08);
-    const y = randRange(height * 0.08, height - h - height * 0.08);
-    const frag = { x, y, w, h };
-    if (isVideo) {
-      frag.t0 = randRange(0, 0.7);
-      frag.t1 = frag.t0 + randRange(0.1, 0.35);
-    }
-    fragments.push(frag);
-  }
-  return fragments;
-}
-
-function maskCircle(target, drawCb) {
-  const ctx = target.getContext('2d');
-  ctx.save();
-  ctx.clearRect(0, 0, target.width, target.height);
-  ctx.beginPath();
-  ctx.arc(target.width / 2, target.height / 2, Math.min(target.width, target.height) / 2, 0, Math.PI * 2);
-  ctx.closePath();
-  ctx.clip();
-  drawCb(ctx);
-  ctx.globalCompositeOperation = 'destination-in';
-  ctx.beginPath();
-  ctx.arc(target.width / 2, target.height / 2, Math.min(target.width, target.height) / 2, 0, Math.PI * 2);
-  ctx.fillStyle = 'rgba(255,255,255,1)';
-  ctx.fill();
-  ctx.restore();
-}
-
-export function stylizeFragment(baseCanvas, phase) {
-  const size = Math.min(baseCanvas.width, baseCanvas.height);
-  const target = createSurface(size, size);
-  const wobble = 0.06 * Math.sin(phase * 0.6);
-  const offsetX = (Math.sin(phase * 1.4) * 0.12 + wobble) * size;
-  const offsetY = (Math.cos(phase * 1.1) * 0.12 - wobble) * size;
-  const scale = 0.92 + 0.08 * Math.sin(phase * 0.9);
-  maskCircle(target, (ctx) => {
-    ctx.filter = 'blur(2px) saturate(1.25) contrast(1.08)';
-    ctx.globalAlpha = 0.8;
-    const w = baseCanvas.width * scale;
-    const h = baseCanvas.height * scale;
-    ctx.drawImage(baseCanvas, (size - w) / 2 + offsetX, (size - h) / 2 + offsetY, w, h);
-    ctx.globalCompositeOperation = 'lighter';
-    ctx.globalAlpha = 0.22;
-    ctx.drawImage(baseCanvas, (size - w) / 2 - offsetX * 0.4, (size - h) / 2 - offsetY * 0.4, w, h);
-  });
-  return target;
-}
-
-export function extractFragments(source, fragments, isVideo = false) {
-  return fragments.map((frag) => {
-    const targetSize = Math.max(120, Math.min(320, Math.max(frag.w, frag.h) * 0.6));
-    const canvas = createSurface(targetSize, targetSize);
-    const ctx = canvas.getContext('2d');
-    ctx.filter = 'blur(1px) saturate(1.2) contrast(1.05)';
-    ctx.drawImage(source, frag.x, frag.y, frag.w, frag.h, 0, 0, targetSize, targetSize);
-    return { canvas, frag };
-  });
-}
-
-export function generateGifBubble(frames) {
+function createBubble(label, radius) {
   return {
-    frames,
-    duration: randRange(5000, 11000),
-    mode: EXPOSURE_MODES[Math.floor(randRange(0, EXPOSURE_MODES.length))],
-    reverse: Math.random() > 0.5,
-    position: { x: clamp01(Math.random()), y: clamp01(Math.random()) },
-    scale: randRange(0.4, 0.85),
-    drift: { x: randRange(-0.12, 0.12), y: randRange(-0.12, 0.12) },
-    phase: Math.random() * Math.PI * 2,
+    label,
+    radius,
+    x: 0,
+    y: 0,
+    vx: randomRange(-0.25, 0.25),
+    vy: randomRange(-0.25, 0.25),
+    color: PALETTE[Math.floor(Math.random() * PALETTE.length)],
+    pulsePhase: Math.random() * Math.PI * 2,
+    type: 'emoji',
+    opacityPhase: Math.random() * Math.PI * 2,
   };
 }
 
-async function captureVideoFrame(video, time) {
-  if (time < 0) return null;
-  return new Promise((resolve) => {
-    const onSeeked = () => {
-      video.removeEventListener('seeked', onSeeked);
-      resolve();
-    };
-    video.addEventListener('seeked', onSeeked);
-    try {
-      video.currentTime = Math.min(Math.max(0, time), Math.max(0.01, video.duration - 0.05));
-    } catch (e) {
-      video.removeEventListener('seeked', onSeeked);
-      resolve();
-    }
-  });
+function createTagBubble() {
+  const bubble = createBubble('', TAG_RADIUS);
+  bubble.type = 'tag';
+  bubble.alpha = 0;
+  bubble.visible = false;
+  return bubble;
 }
 
-async function buildFramesFromVideo(video, fragment) {
-  const frames = [];
-  const total = FRAME_COUNT;
-  for (let i = 0; i < total; i += 1) {
-    const t = fragment.t0 + ((fragment.t1 - fragment.t0) * i) / (total - 1);
-    await captureVideoFrame(video, t * video.duration);
-    const size = Math.max(120, Math.min(320, Math.max(fragment.w, fragment.h) * 0.6));
-    const canvas = createSurface(size, size);
-    const ctx = canvas.getContext('2d');
-    ctx.filter = 'blur(1.2px) saturate(1.25) contrast(1.1)';
-    ctx.drawImage(video, fragment.x, fragment.y, fragment.w, fragment.h, 0, 0, size, size);
-    frames.push(canvas);
-  }
-  return frames;
+function placeBubbles(bubbles, width, height) {
+  bubbles.forEach((b) => {
+    let attempts = 0;
+    let placed = false;
+    while (!placed && attempts < 50) {
+      b.x = randomRange(b.radius + 12, width - b.radius - 12);
+      b.y = randomRange(b.radius + 12, height - b.radius - 12);
+      placed = bubbles.every((other) => {
+        if (other === b) return true;
+        const dx = b.x - other.x;
+        const dy = b.y - other.y;
+        const dist = Math.hypot(dx, dy);
+        return dist > b.radius + other.radius + 10;
+      });
+      attempts += 1;
+    }
+    if (!placed) {
+      b.x = width * 0.5 + randomRange(-40, 40);
+      b.y = height * 0.5 + randomRange(-40, 40);
+    }
+  });
 }
 
 export function createBubblesEngine(state) {
   let bubbles = [];
+  let bounds = { width: 600, height: 600 };
+  let tagBubble = createTagBubble();
+  let tagSwitchTime = 0;
 
   function reset() {
-    bubbles = [];
-    state.markBubbles(0);
+    bubbles = state.snapshot.emojis.map((emoji) => {
+      const bubble = createBubble(emoji, BASE_RADIUS);
+      bubble.type = 'emoji';
+      return bubble;
+    });
+    tagBubble = createTagBubble();
+    tagSwitchTime = 0;
+    bubbles.push(tagBubble);
+    placeBubbles(bubbles, bounds.width, bounds.height);
   }
 
-  function drawBubble(ctx, bubble, width, height, timestamp, pulse, transform, editing) {
-    if (!bubble.frames || bubble.frames.length === 0) return;
-    const t = (timestamp + bubble.phase * 1000) % bubble.duration;
-    const progress = t / bubble.duration;
-    const frameIndex = Math.floor(progress * bubble.frames.length) % bubble.frames.length;
-    const frame = bubble.frames[bubble.reverse ? bubble.frames.length - 1 - frameIndex : frameIndex];
-    if (!frame) return;
+  function setBounds(width, height) {
+    bounds = { width, height };
+    if (bubbles.length === 0) {
+      reset();
+    } else {
+      placeBubbles(bubbles, width, height);
+    }
+  }
 
-    const scale = (transform?.scale ?? 1) * bubble.scale * (0.9 + pulse * 0.2);
-    const cx = ((transform?.x ?? 0.5) + bubble.drift.x * pulse * 0.2) * width;
-    const cy = ((transform?.y ?? 0.5) + bubble.drift.y * pulse * 0.2) * height;
-    const size = Math.min(width, height) * scale * 0.9;
+  function applyBounds(bubble) {
+    if (bubble.x - bubble.radius < 0) {
+      bubble.x = bubble.radius;
+      bubble.vx = Math.abs(bubble.vx) * BOUNCE_DAMPING;
+    }
+    if (bubble.x + bubble.radius > bounds.width) {
+      bubble.x = bounds.width - bubble.radius;
+      bubble.vx = -Math.abs(bubble.vx) * BOUNCE_DAMPING;
+    }
+    if (bubble.y - bubble.radius < 0) {
+      bubble.y = bubble.radius;
+      bubble.vy = Math.abs(bubble.vy) * BOUNCE_DAMPING;
+    }
+    if (bubble.y + bubble.radius > bounds.height) {
+      bubble.y = bounds.height - bubble.radius;
+      bubble.vy = -Math.abs(bubble.vy) * BOUNCE_DAMPING;
+    }
+  }
+
+  function resolveCollision(a, b) {
+    const dx = b.x - a.x;
+    const dy = b.y - a.y;
+    const dist = Math.max(0.001, Math.hypot(dx, dy));
+    const minDist = a.radius + b.radius;
+    if (dist >= minDist) return;
+
+    const overlap = (minDist - dist) * 0.5;
+    const nx = dx / dist;
+    const ny = dy / dist;
+    a.x -= nx * overlap;
+    a.y -= ny * overlap;
+    b.x += nx * overlap;
+    b.y += ny * overlap;
+
+    const kx = (a.vx - b.vx);
+    const ky = (a.vy - b.vy);
+    const p = (2 * (nx * kx + ny * ky)) / 2;
+    a.vx = (a.vx - p * nx) * BOUNCE_DAMPING;
+    a.vy = (a.vy - p * ny) * BOUNCE_DAMPING;
+    b.vx = (b.vx + p * nx) * BOUNCE_DAMPING;
+    b.vy = (b.vy + p * ny) * BOUNCE_DAMPING;
+  }
+
+  function update(timestamp, pulse) {
+    const t = timestamp * 0.001;
+    const readyTag = state.advanceTag(timestamp);
+    if (readyTag) {
+      tagBubble.visible = true;
+      tagBubble.label = state.currentTag();
+      tagSwitchTime = timestamp;
+    }
+    const tagAge = timestamp - tagSwitchTime;
+    if (tagBubble.visible) {
+      const fadeIn = Math.min(1, tagAge / 800);
+      const fadeOut = Math.max(0, 1 - Math.max(0, tagAge - state.snapshot.tagInterval + 1200) / 800);
+      tagBubble.alpha = Math.min(fadeIn, fadeOut);
+      if (fadeOut <= 0) {
+        tagBubble.visible = false;
+        tagBubble.alpha = 0;
+      }
+    }
+
+    bubbles.forEach((b, idx) => {
+      b.vx += Math.sin(t * 0.6 + b.pulsePhase) * 0.002 * (0.6 + pulse);
+      b.vy += Math.cos(t * 0.5 + b.pulsePhase) * 0.0025 * (0.6 + pulse);
+      b.vx *= FRICTION;
+      b.vy *= FRICTION;
+      b.x += b.vx;
+      b.y += b.vy;
+      applyBounds(b);
+      for (let j = idx + 1; j < bubbles.length; j += 1) {
+        resolveCollision(b, bubbles[j]);
+      }
+    });
+  }
+
+  function drawBubble(ctx, bubble, timestamp, pulse) {
+    const wobble = 1 + Math.sin(timestamp * 0.002 + bubble.pulsePhase) * 1.2;
+    const opacityBase = 0.85 + Math.sin(timestamp * 0.0012 + bubble.opacityPhase) * 0.05;
+    const alpha = bubble.type === 'tag' ? (bubble.visible ? bubble.alpha * opacityBase : 0) : opacityBase;
+    if (alpha <= 0.01) return;
 
     ctx.save();
-    ctx.translate(cx, cy);
-    ctx.scale(scale, scale);
-    ctx.translate(-cx, -cy);
-    ctx.globalCompositeOperation = bubble.mode || state.snapshot.exposureMode;
-    ctx.globalAlpha = (editing ? 0.55 : 0.7) + pulse * 0.2;
-    const wobble = 0.04 * Math.sin(timestamp * 0.0006 + bubble.phase);
-    ctx.drawImage(frame, cx - size / 2 + wobble * size, cy - size / 2 - wobble * size, size, size);
-    ctx.globalCompositeOperation = 'screen';
-    ctx.globalAlpha = 0.18;
-    ctx.drawImage(frame, cx - size / 2 - wobble * size * 0.6, cy - size / 2 + wobble * size * 0.6, size * 0.9, size * 0.9);
+    ctx.translate(bubble.x, bubble.y);
+    ctx.beginPath();
+    ctx.arc(0, 0, bubble.radius, 0, Math.PI * 2);
+    ctx.fillStyle = bubble.color;
+    ctx.globalAlpha = alpha;
+    ctx.fill();
+    ctx.lineWidth = 2.5 + (wobble - 1) * 0.8 + pulse * 0.5;
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.4)';
+    ctx.stroke();
+    ctx.font = bubble.type === 'tag' ? '16px "Inter", sans-serif' : '30px "Apple Color Emoji", "Segoe UI Emoji"';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.35)';
+    const label = bubble.type === 'tag' ? bubble.label : bubble.label;
+    ctx.fillText(label, 0, -1);
     ctx.restore();
   }
 
-  function draw(ctx, width, height, timestamp, pulse, transform, editing) {
-    bubbles.forEach((bubble) => drawBubble(ctx, bubble, width, height, timestamp, pulse, transform, editing));
+  function draw(ctx, timestamp, pulse) {
+    bubbles.forEach((bubble) => drawBubble(ctx, bubble, timestamp, pulse));
   }
 
-  async function fromImages(fileList) {
-    const files = Array.from(fileList);
-    const newBubbles = [];
-    for (const file of files) {
-      const bitmap = await createImageBitmap(file);
-      const fragments = perforateSource(bitmap.width, bitmap.height, false);
-      const mats = extractFragments(bitmap, fragments, false);
-      mats.forEach((mat, idx) => {
-        const frames = [];
-        for (let i = 0; i < FRAME_COUNT; i += 1) {
-          const phase = (i / FRAME_COUNT) * Math.PI * 2 + idx * 0.5;
-          frames.push(stylizeFragment(mat.canvas, phase));
-        }
-        newBubbles.push(generateGifBubble(frames));
-      });
-    }
-    bubbles = newBubbles;
-    state.markBubbles(bubbles.length);
-  }
-
-  async function fromVideo(file) {
-    const video = document.createElement('video');
-    video.muted = true;
-    video.loop = true;
-    video.playsInline = true;
-    video.crossOrigin = 'anonymous';
-    video.preload = 'auto';
-    video.src = URL.createObjectURL(file);
-    await video.play().catch(() => {});
-    video.pause();
-    await new Promise((resolve) => {
-      if (video.readyState >= 2) resolve();
-      video.addEventListener('loadeddata', resolve, { once: true });
+  function impulse(x, y) {
+    bubbles.forEach((b) => {
+      const dx = b.x - x;
+      const dy = b.y - y;
+      const dist = Math.max(12, Math.hypot(dx, dy));
+      const force = 1.4 / dist;
+      b.vx += (dx / dist) * force;
+      b.vy += (dy / dist) * force;
     });
-    const fragments = perforateSource(video.videoWidth || 640, video.videoHeight || 360, true);
-    const newBubbles = [];
-    for (let i = 0; i < fragments.length; i += 1) {
-      const fragment = fragments[i];
-      const rawFrames = await buildFramesFromVideo(video, fragment);
-      const frames = rawFrames.map((frame, idx) => stylizeFragment(frame, (idx / rawFrames.length) * Math.PI * 2 + i));
-      newBubbles.push(generateGifBubble(frames));
-    }
-    URL.revokeObjectURL(video.src);
-    bubbles = newBubbles;
-    state.markBubbles(bubbles.length);
   }
 
-  return { draw, fromImages, fromVideo, reset };
+  return { setBounds, update, draw, reset, impulse };
 }
