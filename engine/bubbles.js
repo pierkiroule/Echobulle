@@ -1,3 +1,5 @@
+import { VideoClip } from 'mediabunny';
+
 const PALETTE = ['#8acbff', '#a3a6ff', '#ffdca8', '#f2a6ff', '#9ff3e0'];
 const BASE_RADIUS = 56;
 const GIF_MIN = 3;
@@ -86,25 +88,41 @@ function maskFrame(source, sx, sy, sw, sh, radius, jitterPhase = 0) {
 }
 
 async function videoFragmentsFromFile(file) {
-  const url = URL.createObjectURL(file);
-  const video = document.createElement('video');
-  video.src = url;
+  const clip = new VideoClip(file);
+  const video = clip.mediaElement;
+  const url = clip.src;
   video.muted = true;
   video.loop = true;
   video.playsInline = true;
+  video.crossOrigin = 'anonymous';
+  video.preload = 'auto';
+
+  // Ensure metadata is ready before seeking or drawing frames.
+  if (video.readyState < 1) {
+    await new Promise((resolve) => video.addEventListener('loadedmetadata', resolve, { once: true }));
+  }
+
+  // Kick playback after a user gesture has opened the file picker; ignore rejections silently.
   await video.play().catch(() => {});
-  await new Promise((resolve) => video.addEventListener('loadeddata', resolve, { once: true }));
+  if (video.readyState < 2) {
+    await new Promise((resolve) => video.addEventListener('loadeddata', resolve, { once: true }));
+  }
 
   const duration = Math.max(1, video.duration || 6);
   const count = Math.floor(Math.random() * (GIF_MAX - GIF_MIN + 1)) + GIF_MIN;
   const fragmentsOut = [];
 
   async function captureFrame(time, radius, crop) {
+    const targetTime = Math.min(duration - 0.05, Math.max(0.05, time));
     return new Promise((resolve) => {
       const handler = () => {
+        if (video.videoWidth === 0 || video.videoHeight === 0 || video.readyState < 2) {
+          resolve(null);
+          return;
+        }
         resolve(maskFrame(video, crop.sx, crop.sy, crop.sw, crop.sh, radius, time));
       };
-      video.currentTime = Math.min(duration - 0.05, Math.max(0.05, time));
+      video.currentTime = targetTime;
       video.addEventListener('seeked', handler, { once: true });
     });
   }
@@ -123,9 +141,11 @@ async function videoFragmentsFromFile(file) {
       const t = start + (windowSize * f) / GIF_FRAMES;
       // eslint-disable-next-line no-await-in-loop
       const frame = await captureFrame(t, radius, crop);
-      frames.push(frame);
+      if (frame) frames.push(frame);
     }
-    fragmentsOut.push({ frames, radius });
+    if (frames.length) {
+      fragmentsOut.push({ frames, radius });
+    }
   }
 
   video.pause();
