@@ -36,7 +36,7 @@
       }
 
       .viewport {
-        width: min(70vw, 480px);
+        width: min(70vw, 520px);
         aspect-ratio: 1 / 1;
         border-radius: 50%;
         overflow: hidden;
@@ -46,6 +46,13 @@
         position: relative;
       }
 
+      .viewport video,
+      .overlay-canvas,
+      .overlay-images {
+        position: absolute;
+        inset: 0;
+      }
+
       .viewport video {
         width: 100%;
         height: 100%;
@@ -53,6 +60,28 @@
         display: block;
         filter: contrast(1.05) saturate(1.08) brightness(0.95);
         background: #000;
+        z-index: 1;
+      }
+
+      .overlay-canvas {
+        z-index: 2;
+        pointer-events: none;
+      }
+
+      .overlay-images {
+        z-index: 3;
+        display: grid;
+        place-items: center;
+        pointer-events: none;
+      }
+
+      .overlay-image {
+        max-width: 90%;
+        max-height: 90%;
+        filter: drop-shadow(0 16px 40px rgba(0, 0, 0, 0.45));
+        transition: opacity 0.8s ease, transform 8s ease;
+        opacity: 0;
+        transform-origin: center;
       }
 
       .controls {
@@ -96,22 +125,26 @@
   </head>
   <body>
     <div class="shell">
-      <div class="viewport" aria-label="Hublot audiovisuel">
+      <div class="viewport" aria-label="Hublot audiovisuel" id="viewport">
         <video id="echo-video" playsinline muted></video>
+        <canvas id="particle-layer" class="overlay-canvas"></canvas>
+        <div class="overlay-images" id="overlay-images"></div>
       </div>
       <div class="controls">
         <button id="import-audio">Importer MP3</button>
         <button id="import-video">Importer MP4</button>
+        <button id="import-images">Importer images</button>
         <button id="reset-all">Stop / Reset</button>
       </div>
       <div class="hint">
-        Le son démarre après interaction. Charge un MP3 et un MP4 pour mixer localement et laisser tourner en boucle. Si un média
-        manque, le hublot reste silencieux ou noir.
+        Le son démarre après interaction. Charge un MP3, un MP4 et des images locales pour mixer en boucle. Si un média manque,
+        le hublot reste silencieux, noir ou sans overlay.
       </div>
     </div>
 
     <input id="file-audio" type="file" accept="audio/mpeg" hidden />
     <input id="file-video" type="file" accept="video/mp4" hidden />
+    <input id="file-images" type="file" accept="image/png, image/jpeg" hidden multiple />
 
     <script type="module" src="./main.js"></script>
   </body>

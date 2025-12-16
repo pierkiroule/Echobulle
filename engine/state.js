@@ -6,6 +6,8 @@ export function createState() {
     playingVideo: false,
     lastAudioName: null,
     lastVideoName: null,
+    imagesLoaded: 0,
+    touches: 0,
   };
 
   return {
@@ -28,6 +30,12 @@ export function createState() {
     markVideoStopped() {
       state.playingVideo = false;
     },
+    markParticlesTicked() {
+      state.touches += 1;
+    },
+    markImagesLoaded(count) {
+      state.imagesLoaded = count;
+    },
     reset() {
       state.audioLoaded = false;
       state.videoLoaded = false;
@@ -35,6 +43,8 @@ export function createState() {
       state.playingVideo = false;
       state.lastAudioName = null;
       state.lastVideoName = null;
+      state.imagesLoaded = 0;
+      state.touches = 0;
     },
   };
 }
