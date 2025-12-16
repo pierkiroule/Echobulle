@@ -247,7 +247,7 @@ export function createBubblesEngine(state) {
     const readyTag = state.advanceTag(timestamp);
     if (readyTag) {
       tagBubble.visible = true;
-      tagBubble.label = state.currentTag();
+      tagBubble.label = state.emojiFor(state.currentTag());
       tagSwitchTime = timestamp;
     }
     const tagAge = timestamp - tagSwitchTime;
@@ -307,7 +307,9 @@ export function createBubblesEngine(state) {
     ctx.strokeStyle = 'rgba(255, 255, 255, 0.65)';
     ctx.globalAlpha = alpha;
     ctx.stroke();
-    ctx.font = bubble.type === 'tag' ? '16px "Inter", sans-serif' : '30px "Apple Color Emoji", "Segoe UI Emoji"';
+    ctx.font = bubble.type === 'tag'
+      ? '28px "Apple Color Emoji", "Segoe UI Emoji"'
+      : '30px "Apple Color Emoji", "Segoe UI Emoji"';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     ctx.fillStyle = 'rgba(0, 0, 0, 0.38)';

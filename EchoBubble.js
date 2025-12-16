@@ -10,16 +10,22 @@ export function createEchoBubble(root) {
   const audioEngine = createAudioEngine(state);
   const bubblesEngine = createBubblesEngine(state);
   const audioInput = document.getElementById('file-audio');
-  const videoInput = document.getElementById('file-video');
-  const imageInput = document.getElementById('file-image');
+  const visualInput = document.getElementById('file-visual');
+  const thoughtInput = document.getElementById('thought-input');
+  const tagPulseButton = document.getElementById('tag-pulse');
+  const hashtagLine = document.getElementById('hashtags-line');
   const buttons = {
     audio: document.getElementById('import-audio'),
-    video: document.getElementById('import-video'),
-    image: document.getElementById('import-image'),
+    visual: document.getElementById('import-visual'),
     reset: document.getElementById('reset-all'),
     capture: document.getElementById('capture'),
   };
   let animationId = null;
+
+  function renderHashtagsLine() {
+    const tags = state.snapshot.tags;
+    hashtagLine.textContent = tags.join('   ');
+  }
 
   function resizeCanvas() {
     const ratio = window.devicePixelRatio || 1;
@@ -31,6 +37,23 @@ export function createEchoBubble(root) {
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.scale(ratio, ratio);
     bubblesEngine.setBounds(rect.width, rect.height);
+  }
+
+  function pulverizeText() {
+    const raw = (thoughtInput.value || '').trim();
+    if (!raw) return;
+    const words = raw
+      .replace(/[\n\r]+/g, ' ')
+      .split(/\s+/)
+      .filter((w) => w.trim().length > 0)
+      .map((w) => `#${w.replace(/[^\p{L}\p{N}_-]+/gu, '')}`)
+      .filter((w) => w.length > 1);
+    if (words.length === 0) return;
+    state.setHashtags(words);
+    bubblesEngine.reset();
+    hashtagLine.textContent = words.join('   ');
+    state.nudgePulse(0.03);
+    renderHashtagsLine();
   }
 
   function capturePNG() {
@@ -68,12 +91,12 @@ export function createEchoBubble(root) {
   }
 
   buttons.audio.addEventListener('click', () => audioInput.click());
-  buttons.video.addEventListener('click', () => videoInput.click());
-  buttons.image.addEventListener('click', () => imageInput.click());
+  buttons.visual.addEventListener('click', () => visualInput.click());
   buttons.reset.addEventListener('click', () => {
     audioEngine.reset();
     bubblesEngine.reset();
     state.reset();
+    renderHashtagsLine();
   });
   buttons.capture.addEventListener('click', capturePNG);
 
@@ -84,19 +107,20 @@ export function createEchoBubble(root) {
     audioInput.value = '';
   });
 
-  videoInput.addEventListener('change', async (event) => {
+  visualInput.addEventListener('change', async (event) => {
     const file = event.target.files?.[0];
     if (!file) return;
-    await bubblesEngine.ingestVideo(file);
-    videoInput.value = '';
+    if (file.type.startsWith('video/')) {
+      await bubblesEngine.ingestVideo(file);
+    } else {
+      await bubblesEngine.ingestImage(file);
+    }
+    visualInput.value = '';
   });
 
-  imageInput.addEventListener('change', async (event) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
-    await bubblesEngine.ingestImage(file);
-    imageInput.value = '';
-  });
+  tagPulseButton.addEventListener('click', pulverizeText);
+
+  renderHashtagsLine();
 
   viewport.addEventListener('click', handlePointer);
   viewport.addEventListener('pointerdown', (event) => {
