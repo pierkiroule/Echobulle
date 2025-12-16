@@ -1,18 +1,18 @@
-# ÉchoBulle — bulles vidéo locales
-Ceci est un prototype frugal et local. Le hublot n’affiche que des bulles issues des vidéos importées : perforées, stylisées, converties en GIFs contourés. Elles se relaient automatiquement toutes les 10 secondes avec un fondu doux. Les emojis résonnent sous la ligne de hashtags, jamais dans le hublot. Un MP3 boucle nourrit le pulse qui guide la danse.
+# ÉchoBulle — collage de bulles vidéo vivantes
+Ceci est un prototype frugal et local. Le champ occupe tout l’écran et ne garde que des bulles GIF issues des vidéos importées : perforées, stylisées, collision-sûres et contourées. Chaque bulle provient d’une source vidéo différente, dérive en douceur sans chevauchement, et les particules périphériques suivent des champs de force audio-réactifs.
 
 ## Concept
-- Imports vidéo (mp4/webm) convertis en bulles GIF stylisées (perforation, frames réduites, contour léger) via un bouton « Importer vidéos ».
-- Bulles circulaires au contour animé très léger, pas de glow ni d’effets cumulés. Pas de chevauchement.
-- Séquence auto : chaque vidéo prend le relais pendant ~10 s avec fondu noir.
-- Emojis (🌊 🌙 🔥 🪨 🌫️ 🌬️ ✨ 💧) affichés sous la ligne de hashtags ; le hublot n’affiche que les bulles vidéo.
-- Hashtags : un pad texte, bouton « l’écho des # », hashtags affichés sous le bouton, emojis alignés juste en dessous.
-- Pulse audio lissé depuis un MP3 local via Web Audio, utilisé partout pour garder un rythme unique.
-- Interaction souffle : tap/clic pousse doucement les bulles, jamais de réaction brutale.
-- Zone de texte au-dessus du hublot : écris, clique « l’écho des # » pour pulvériser en hashtags (affichés sous le bouton), les emojis du hublot se calent dessus.
+- Bouton « Importer vidéos » : chaque MP4/WebM est perforé en fragments, compressé en GIFs circulaires contourés, puis injecté dans le collage sans jamais afficher la source brute.
+- Toutes les bulles coexistent et dansent lentement : collisions souples, contours sobres, aucune double exposition.
+- Emojis alignés sous la ligne de hashtags (hors champ). Hashtags issus du pad texte via « l’écho des # ».
+- Bouton « Importer MP3 » : la nappe en boucle nourrit le pulse qui module bulles et particules de force-field ; tap/clic ajoute un souffle doux.
+- Canvas plein écran (pas de hublot) avec capture PNG locale. Zéro réseau, zéro IA.
 
 ## Usage
-Ouvre `index.html` dans un navigateur mobile ou desktop (Termux + Acode inclus). Importe un MP3 : la nappe joue en boucle, le pulse s’adapte. Écris des pensées puis déclenche « l’écho des # » : les hashtags apparaissent sous le bouton, la ligne d’emojis suit. Importe une ou plusieurs vidéos : chaque source est perforée et convertie en bulles GIF contourées, diffusées à tour de rôle avec fondu noir.
-Tap/clic pour souffler : les bulles rebondissent sans se chevaucher et le hublot reste lisible sans fond étoilé. Capture PNG disponible. Aucun réseau, aucune IA : tout est local.
+Ouvre `index.html` dans un navigateur mobile ou desktop (Termux + Acode inclus).
+1. Écris tes pensées puis clique « l’écho des # » : hashtags affichés, emojis alignés juste dessous.
+2. Importe un MP3 : l’audio tourne en boucle, pulse lissé appliqué à la scène.
+3. Importe une ou plusieurs vidéos : chaque source devient une bulle GIF dédiée, jamais recouverte par les autres.
+4. Observe le flux : bulles non chevauchantes, particules audio-réactives, interactions tactiles pour souffler. Capture PNG disponible.
 
-> “Ceci est un prototype frugal pour tester le cœur hypnotique d’ÉchoBulle.”
+> “Ceci est un prototype frugal pour tester le collage hypnotique d’ÉchoBulle.”
