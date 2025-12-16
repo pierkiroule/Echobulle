@@ -72,12 +72,17 @@
         flex-wrap: wrap;
       }
 
-      .hashtags-line {
+      .hashtags-line,
+      .emojis-line {
         min-height: 22px;
         color: rgba(255, 255, 255, 0.78);
         letter-spacing: 0.02em;
         font-size: 13px;
         word-break: break-word;
+      }
+
+      .emojis-line {
+        opacity: 0.75;
       }
 
       .viewport {
@@ -150,25 +155,26 @@
           <button id="tag-pulse">l’écho des #</button>
           <div class="hashtags-line" id="hashtags-line"></div>
         </div>
+        <div class="emojis-line" id="emojis-line"></div>
       </div>
       <div class="viewport" aria-label="Hublot audiovisuel" id="viewport">
         <canvas id="echo-canvas"></canvas>
       </div>
       <div class="controls">
         <button id="import-audio">Importer MP3</button>
-        <button id="import-visual">Importer visuels</button>
+        <button id="import-visual">Importer vidéos</button>
         <button id="capture">Capture PNG</button>
         <button id="reset-all">Stop / Reset</button>
       </div>
       <div class="hint">
-        Le hublot respire avec des bulles contours : emojis résonant avec tes hashtags, tags qui apparaissent l’un après l’autre,
-        GIFs générés depuis tes visuels importés. Un MP3 en boucle nourrit le pulse. Tap ou clique pour souffler : une danse lente
-        et lisible.
+        Le hublot garde seulement les bulles GIF issues de tes vidéos : elles se relaient toutes les 10 secondes avec un fondu doux.
+        Les emojis résonnent sous tes hashtags. Autour, des particules réagissent à l’audio. Tap ou clique pour souffler et nourrir
+        la danse lente.
       </div>
     </div>
 
     <input id="file-audio" type="file" accept="audio/mpeg" hidden />
-    <input id="file-visual" type="file" accept="image/png,image/jpeg,video/mp4,video/webm" hidden />
+    <input id="file-visual" type="file" accept="video/mp4,video/webm" multiple hidden />
 
     <script type="module" src="./main.js"></script>
   </body>

@@ -1,19 +1,20 @@
 const PALETTE = ['#8acbff', '#a3a6ff', '#ffdca8', '#f2a6ff', '#9ff3e0'];
-const BASE_RADIUS = 46;
-const TAG_RADIUS = 64;
+const BASE_RADIUS = 56;
 const GIF_MIN = 3;
 const GIF_MAX = 7;
 const GIF_FRAMES = 14;
 const FRICTION = 0.985;
 const BOUNCE_DAMPING = 0.92;
+const SWITCH_INTERVAL = 10000;
+const SWITCH_FADE = 1200;
+const STAR_COUNT = 120;
 
 function randomRange(min, max) {
   return Math.random() * (max - min) + min;
 }
 
-function createBubble(label, radius) {
+function createBubble(radius) {
   return {
-    label,
     radius,
     x: 0,
     y: 0,
@@ -21,19 +22,11 @@ function createBubble(label, radius) {
     vy: randomRange(-0.25, 0.25),
     color: PALETTE[Math.floor(Math.random() * PALETTE.length)],
     pulsePhase: Math.random() * Math.PI * 2,
-    type: 'emoji',
+    type: 'gif',
     opacityPhase: Math.random() * Math.PI * 2,
     frames: null,
     frameOffset: Math.floor(Math.random() * GIF_FRAMES),
   };
-}
-
-function createTagBubble() {
-  const bubble = createBubble('', TAG_RADIUS);
-  bubble.type = 'tag';
-  bubble.alpha = 0;
-  bubble.visible = false;
-  return bubble;
 }
 
 function placeBubbles(bubbles, width, height) {
@@ -92,24 +85,6 @@ function maskFrame(source, sx, sy, sw, sh, radius, jitterPhase = 0) {
   return off;
 }
 
-async function imageFragmentsFromBitmap(bitmap) {
-  const count = Math.floor(Math.random() * (GIF_MAX - GIF_MIN + 1)) + GIF_MIN;
-  const fragmentsOut = [];
-  for (let i = 0; i < count; i += 1) {
-    const radius = randomRange(40, 70);
-    const sw = Math.max(40, bitmap.width * randomRange(0.24, 0.44));
-    const sh = Math.max(40, bitmap.height * randomRange(0.24, 0.44));
-    const sx = randomRange(0, Math.max(1, bitmap.width - sw));
-    const sy = randomRange(0, Math.max(1, bitmap.height - sh));
-    const frames = [];
-    for (let f = 0; f < GIF_FRAMES; f += 1) {
-      frames.push(maskFrame(bitmap, sx, sy, sw, sh, radius, (f / GIF_FRAMES) * Math.PI * 2));
-    }
-    fragmentsOut.push({ frames, radius });
-  }
-  return fragmentsOut;
-}
-
 async function videoFragmentsFromFile(file) {
   const url = URL.createObjectURL(file);
   const video = document.createElement('video');
@@ -161,30 +136,34 @@ async function videoFragmentsFromFile(file) {
 export function createBubblesEngine(state) {
   let bubbles = [];
   let bounds = { width: 600, height: 600 };
-  let tagBubble = createTagBubble();
-  let tagSwitchTime = 0;
-  let fragments = [];
+  let fragmentSets = [];
+  let activeSet = -1;
+  let switchStart = 0;
+  let fading = false;
+  let stars = [];
+
+  function buildStars() {
+    stars = Array.from({ length: STAR_COUNT }, () => ({
+      x: Math.random(),
+      y: Math.random(),
+      size: randomRange(0.5, 1.4),
+      twinkle: Math.random() * Math.PI * 2,
+    }));
+  }
 
   function reset() {
-    bubbles = state.snapshot.emojis.map((emoji) => {
-      const bubble = createBubble(emoji, BASE_RADIUS);
-      bubble.type = 'emoji';
-      return bubble;
-    });
-    fragments = [];
-    tagBubble = createTagBubble();
-    tagSwitchTime = 0;
-    bubbles.push(tagBubble);
+    bubbles = [];
+    fragmentSets = [];
+    activeSet = -1;
+    switchStart = 0;
+    fading = false;
+    buildStars();
     placeBubbles(bubbles, bounds.width, bounds.height);
   }
 
   function setBounds(width, height) {
     bounds = { width, height };
-    if (bubbles.length === 0) {
-      reset();
-    } else {
-      placeBubbles(bubbles, width, height);
-    }
+    placeBubbles(bubbles, width, height);
   }
 
   function applyBounds(bubble) {
@@ -221,8 +200,8 @@ export function createBubblesEngine(state) {
     b.x += nx * overlap;
     b.y += ny * overlap;
 
-    const kx = (a.vx - b.vx);
-    const ky = (a.vy - b.vy);
+    const kx = a.vx - b.vx;
+    const ky = a.vy - b.vy;
     const p = (2 * (nx * kx + ny * ky)) / 2;
     a.vx = (a.vx - p * nx) * BOUNCE_DAMPING;
     a.vy = (a.vy - p * ny) * BOUNCE_DAMPING;
@@ -230,34 +209,37 @@ export function createBubblesEngine(state) {
     b.vy = (b.vy + p * ny) * BOUNCE_DAMPING;
   }
 
-  function adoptFragments(fragmentList) {
-    fragmentList.forEach(({ frames, radius }) => {
-      const bubble = createBubble('', radius);
+  function adoptSet(index) {
+    const fragmentList = fragmentSets[index] || [];
+    bubbles = fragmentList.map(({ frames, radius }) => {
+      const bubble = createBubble(radius || BASE_RADIUS);
       bubble.type = 'gif';
       bubble.frames = frames;
       bubble.color = PALETTE[Math.floor(Math.random() * PALETTE.length)];
-      bubbles.splice(bubbles.length - 1, 0, bubble);
+      return bubble;
     });
-    fragments = fragments.concat(fragmentList);
+    if (!bubbles.length) {
+      bubbles.push(createBubble(BASE_RADIUS));
+    }
     placeBubbles(bubbles, bounds.width, bounds.height);
   }
 
   function update(timestamp, pulse) {
     const t = timestamp * 0.001;
-    const readyTag = state.advanceTag(timestamp);
-    if (readyTag) {
-      tagBubble.visible = true;
-      tagBubble.label = state.emojiFor(state.currentTag());
-      tagSwitchTime = timestamp;
-    }
-    const tagAge = timestamp - tagSwitchTime;
-    if (tagBubble.visible) {
-      const fadeIn = Math.min(1, tagAge / 800);
-      const fadeOut = Math.max(0, 1 - Math.max(0, tagAge - state.snapshot.tagInterval + 1200) / 800);
-      tagBubble.alpha = Math.min(fadeIn, fadeOut);
-      if (fadeOut <= 0) {
-        tagBubble.visible = false;
-        tagBubble.alpha = 0;
+    if (fragmentSets.length > 1) {
+      const elapsed = timestamp - switchStart;
+      if (!fading && elapsed > SWITCH_INTERVAL) {
+        fading = true;
+        switchStart = timestamp;
+      }
+      if (fading) {
+        const progress = Math.min(1, (timestamp - switchStart) / SWITCH_FADE);
+        if (progress >= 1) {
+          activeSet = (activeSet + 1) % fragmentSets.length;
+          adoptSet(activeSet);
+          fading = false;
+          switchStart = timestamp;
+        }
       }
     }
 
@@ -275,10 +257,25 @@ export function createBubblesEngine(state) {
     });
   }
 
+  function drawStars(ctx, timestamp, pulse) {
+    const { width, height } = bounds;
+    ctx.save();
+    ctx.globalCompositeOperation = 'screen';
+    stars.forEach((star) => {
+      const tw = Math.sin(timestamp * 0.001 + star.twinkle) * 0.5 + 0.5;
+      const alpha = 0.15 + (tw + pulse * 0.6) * 0.25;
+      ctx.fillStyle = `rgba(160, 210, 255, ${alpha})`;
+      ctx.beginPath();
+      ctx.arc(star.x * width, star.y * height, star.size + pulse * 0.4, 0, Math.PI * 2);
+      ctx.fill();
+    });
+    ctx.restore();
+  }
+
   function drawBubble(ctx, bubble, timestamp, pulse) {
     const wobble = 1 + Math.sin(timestamp * 0.002 + bubble.pulsePhase) * 1.2;
-    const opacityBase = 0.85 + Math.sin(timestamp * 0.0012 + bubble.opacityPhase) * 0.05;
-    const alpha = bubble.type === 'tag' ? (bubble.visible ? bubble.alpha * opacityBase : 0) : opacityBase;
+    const opacityBase = 0.9 + Math.sin(timestamp * 0.0012 + bubble.opacityPhase) * 0.04;
+    const alpha = opacityBase;
     if (alpha <= 0.01) return;
 
     ctx.save();
@@ -304,22 +301,21 @@ export function createBubblesEngine(state) {
     ctx.beginPath();
     ctx.arc(0, 0, bubble.radius, 0, Math.PI * 2);
     ctx.lineWidth = 2.4 + (wobble - 1) * 0.7 + pulse * 0.4;
-    ctx.strokeStyle = 'rgba(255, 255, 255, 0.65)';
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.8)';
     ctx.globalAlpha = alpha;
     ctx.stroke();
-    ctx.font = bubble.type === 'tag'
-      ? '28px "Apple Color Emoji", "Segoe UI Emoji"'
-      : '30px "Apple Color Emoji", "Segoe UI Emoji"';
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillStyle = 'rgba(0, 0, 0, 0.38)';
-    const label = bubble.type === 'tag' ? bubble.label : bubble.label;
-    if (label) ctx.fillText(label, 0, -1);
     ctx.restore();
   }
 
   function draw(ctx, timestamp, pulse) {
+    drawStars(ctx, timestamp, pulse);
     bubbles.forEach((bubble) => drawBubble(ctx, bubble, timestamp, pulse));
+    if (fading) {
+      const progress = Math.min(1, (timestamp - switchStart) / SWITCH_FADE);
+      const fadeAlpha = Math.sin(progress * Math.PI * 0.5);
+      ctx.fillStyle = `rgba(4, 6, 12, ${0.4 + fadeAlpha * 0.6})`;
+      ctx.fillRect(0, 0, bounds.width, bounds.height);
+    }
   }
 
   function impulse(x, y) {
@@ -333,16 +329,15 @@ export function createBubblesEngine(state) {
     });
   }
 
-  async function ingestImage(file) {
-    const bitmap = await createImageBitmap(file);
-    const fragmentList = await imageFragmentsFromBitmap(bitmap);
-    adoptFragments(fragmentList);
-  }
-
   async function ingestVideo(file) {
     const fragmentList = await videoFragmentsFromFile(file);
-    adoptFragments(fragmentList);
+    fragmentSets.push(fragmentList);
+    if (activeSet === -1) {
+      activeSet = 0;
+      adoptSet(activeSet);
+      switchStart = performance.now();
+    }
   }
 
-  return { setBounds, update, draw, reset, impulse, ingestImage, ingestVideo };
+  return { setBounds, update, draw, reset, impulse, ingestVideo };
 }

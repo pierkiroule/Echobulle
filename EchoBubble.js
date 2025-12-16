@@ -14,6 +14,7 @@ export function createEchoBubble(root) {
   const thoughtInput = document.getElementById('thought-input');
   const tagPulseButton = document.getElementById('tag-pulse');
   const hashtagLine = document.getElementById('hashtags-line');
+  const emojiLine = document.getElementById('emojis-line');
   const buttons = {
     audio: document.getElementById('import-audio'),
     visual: document.getElementById('import-visual'),
@@ -23,8 +24,9 @@ export function createEchoBubble(root) {
   let animationId = null;
 
   function renderHashtagsLine() {
-    const tags = state.snapshot.tags;
-    hashtagLine.textContent = tags.join('   ');
+    const snapshot = state.snapshot;
+    hashtagLine.textContent = snapshot.tags.join('   ');
+    emojiLine.textContent = snapshot.emojis.join('   ');
   }
 
   function resizeCanvas() {
@@ -108,12 +110,12 @@ export function createEchoBubble(root) {
   });
 
   visualInput.addEventListener('change', async (event) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
-    if (file.type.startsWith('video/')) {
+    const files = Array.from(event.target.files || []).filter((f) => f.type.startsWith('video/'));
+    if (!files.length) return;
+    // sequential ingestion to keep memory tame
+    for (const file of files) {
+      // eslint-disable-next-line no-await-in-loop
       await bubblesEngine.ingestVideo(file);
-    } else {
-      await bubblesEngine.ingestImage(file);
     }
     visualInput.value = '';
   });
