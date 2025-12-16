@@ -3,11 +3,177 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>ÉchoBulle</title>
-    <link rel="icon" type="image/png" href="/favicon.png" />
+    <title>ÉchoBulle — bulles vidéo libres</title>
+    <script type="importmap">
+      {
+        "imports": {
+          "mediabunny": "./vendor/mediabunny.js"
+        }
+      }
+    </script>
+    <style>
+      :root {
+        color-scheme: dark;
+        --bg: #05060a;
+        --fg: #eef0f6;
+        --accent: #7ad2ff;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        min-height: 100vh;
+        background: radial-gradient(circle at 20% 20%, #0b1221, #05060a 60%);
+        color: var(--fg);
+        font-family: "Inter", "SF Pro Text", system-ui, -apple-system, sans-serif;
+        display: flex;
+        align-items: stretch;
+        justify-content: center;
+        padding: 18px;
+      }
+
+      .shell {
+        width: min(1040px, 100%);
+        display: grid;
+        gap: 14px;
+      }
+
+      .text-pad {
+        width: 100%;
+        background: rgba(255, 255, 255, 0.04);
+        border: 1px solid rgba(255, 255, 255, 0.14);
+        border-radius: 16px;
+        padding: 12px 14px 10px;
+        display: grid;
+        gap: 10px;
+      }
+
+      .text-pad textarea {
+        width: 100%;
+        min-height: 64px;
+        background: rgba(0, 0, 0, 0.24);
+        color: var(--fg);
+        border: 1px solid rgba(255, 255, 255, 0.16);
+        border-radius: 12px;
+        padding: 10px 12px;
+        font-size: 14px;
+        resize: vertical;
+        outline: none;
+      }
+
+      .text-actions {
+        display: flex;
+        gap: 10px;
+        align-items: center;
+        flex-wrap: wrap;
+      }
+
+      .hashtags-line,
+      .emojis-line {
+        min-height: 22px;
+        color: rgba(255, 255, 255, 0.78);
+        letter-spacing: 0.02em;
+        font-size: 13px;
+        word-break: break-word;
+      }
+
+      .emojis-line {
+        opacity: 0.75;
+      }
+
+      .viewport {
+        width: 100%;
+        height: min(72vh, 780px);
+        border-radius: 22px;
+        overflow: hidden;
+        border: 1px solid rgba(255, 255, 255, 0.16);
+        box-shadow: 0 24px 80px rgba(0, 0, 0, 0.6), inset 0 0 60px rgba(122, 210, 255, 0.06);
+        background: radial-gradient(circle at 35% 30%, rgba(122, 210, 255, 0.08), rgba(7, 10, 18, 0.9)), #05060a;
+        position: relative;
+      }
+
+      #echo-canvas {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        display: block;
+      }
+
+      .controls {
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+        justify-content: flex-start;
+      }
+
+      button {
+        appearance: none;
+        border: 1px solid rgba(255, 255, 255, 0.18);
+        color: var(--fg);
+        background: linear-gradient(135deg, rgba(122, 210, 255, 0.22), rgba(255, 255, 255, 0.04));
+        padding: 12px 16px;
+        border-radius: 999px;
+        letter-spacing: 0.03em;
+        font-size: 14px;
+        cursor: pointer;
+        transition: transform 160ms ease, border-color 160ms ease, box-shadow 160ms ease;
+      }
+
+      button:hover {
+        transform: translateY(-1px);
+        border-color: rgba(255, 255, 255, 0.36);
+        box-shadow: 0 12px 40px rgba(122, 210, 255, 0.2);
+      }
+
+      button:active {
+        transform: translateY(0);
+      }
+
+      .hint {
+        font-size: 12px;
+        opacity: 0.76;
+        max-width: 840px;
+        line-height: 1.5;
+      }
+    </style>
   </head>
   <body>
-    <div id="root"></div>
-    <script type="module" src="/src/main.jsx"></script>
+    <div class="shell">
+      <div class="text-pad">
+        <textarea
+          id="thought-input"
+          placeholder="J’écris ici les pensées qui déambullent•° dans mon esprit..."
+          aria-label="Pensées à pulvériser en hashtags"
+        ></textarea>
+        <div class="text-actions">
+          <button id="tag-pulse">l’écho des #</button>
+          <div class="hashtags-line" id="hashtags-line"></div>
+        </div>
+        <div class="emojis-line" id="emojis-line"></div>
+      </div>
+      <div class="viewport" aria-label="Champ audiovisuel" id="viewport">
+        <canvas id="echo-canvas"></canvas>
+      </div>
+      <div class="controls">
+        <button id="import-audio">Importer MP3</button>
+        <button id="import-visual">Importer vidéos</button>
+        <button id="capture">Capture PNG</button>
+        <button id="reset-all">Stop / Reset</button>
+      </div>
+      <div class="hint">
+        Tout l’écran accueille des bulles GIF issues de tes vidéos importées : plus petites, elles ne se chevauchent pas et se mettent au premier plan d’un clic.
+        Les hashtags et emojis restent en ligne, hors du champ. Les particules périphériques suivent des champs de force audio-réactifs.
+        Tap ou clique pour souffler et déclencher des ondes lumineuses, tout est local et sans IA.
+      </div>
+    </div>
+
+    <input id="file-audio" type="file" accept="audio/mpeg" hidden />
+    <input id="file-visual" type="file" accept="video/mp4,video/webm" multiple hidden />
+
+    <script type="module" src="./main.js"></script>
   </body>
 </html>
