@@ -36,7 +36,16 @@ export function createImagesEngine(state) {
     return images[currentIndex] || null;
   }
 
-  function draw(ctx, width, height, timestamp, pulse) {
+  function frameRect(transform, width, height, scaleMul = 1) {
+    const scale = (transform?.scale ?? 1) * scaleMul;
+    const cx = (transform?.x ?? 0.5) * width;
+    const cy = (transform?.y ?? 0.5) * height;
+    const w = width * scale;
+    const h = height * scale;
+    return { x: cx - w / 2, y: cy - h / 2, w, h };
+  }
+
+  function draw(ctx, width, height, timestamp, pulse, transform) {
     const img = currentImage(timestamp);
     if (!img) return;
     const elapsed = timestamp - lastSwitch;
@@ -44,15 +53,12 @@ export function createImagesEngine(state) {
     const alpha = 0.35 + 0.35 * fade + pulse * 0.15;
     ctx.save();
     ctx.globalAlpha = Math.min(0.9, alpha);
-    const scale = 0.9 + Math.sin(timestamp * 0.0002 + pulse) * 0.06;
-    const w = width * scale;
-    const h = height * scale;
-    const x = (width - w) / 2;
-    const y = (height - h) / 2;
-    ctx.translate(width / 2, height / 2);
+    const wobble = 0.9 + Math.sin(timestamp * 0.0002 + pulse) * 0.06;
+    const rect = frameRect(transform, width, height, wobble);
+    ctx.translate(rect.x + rect.w / 2, rect.y + rect.h / 2);
     ctx.rotate(0.02 * Math.sin(timestamp * 0.0001));
-    ctx.translate(-width / 2, -height / 2);
-    ctx.drawImage(img, x, y, w, h);
+    ctx.translate(-(rect.x + rect.w / 2), -(rect.y + rect.h / 2));
+    ctx.drawImage(img, rect.x, rect.y, rect.w, rect.h);
     ctx.restore();
   }
 

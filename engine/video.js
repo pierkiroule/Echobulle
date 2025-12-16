@@ -37,7 +37,16 @@ export function createVideoEngine(state) {
     video.play().catch(() => {});
   }
 
-  function draw(ctx, width, height, timestamp) {
+  function frameRect(transform, width, height) {
+    const scale = transform?.scale ?? 1;
+    const cx = (transform?.x ?? 0.5) * width;
+    const cy = (transform?.y ?? 0.5) * height;
+    const w = width * scale;
+    const h = height * scale;
+    return { x: cx - w / 2, y: cy - h / 2, w, h };
+  }
+
+  function draw(ctx, width, height, timestamp, transform) {
     if (!ready || video.readyState < 2) return;
     const dt = lastTime ? (timestamp - lastTime) / 1000 : 0;
     lastTime = timestamp;
@@ -48,12 +57,17 @@ export function createVideoEngine(state) {
         video.currentTime = Math.max(0, video.duration - 0.05);
       }
     }
+    const rect = frameRect(transform, width, height);
     ctx.globalCompositeOperation = 'source-over';
-    ctx.drawImage(video, 0, 0, width, height);
+    ctx.drawImage(video, rect.x, rect.y, rect.w, rect.h);
     if (state.snapshot.fadeBlack > 0.001) {
       ctx.fillStyle = `rgba(0,0,0,${state.snapshot.fadeBlack})`;
       ctx.fillRect(0, 0, width, height);
     }
+  }
+
+  function pause() {
+    video.pause();
   }
 
   function reset() {
@@ -64,5 +78,5 @@ export function createVideoEngine(state) {
     video.removeAttribute('src');
   }
 
-  return { loadFile, draw, resume, reset, get element() { return video; } };
+  return { loadFile, draw, resume, pause, reset, get element() { return video; } };
 }

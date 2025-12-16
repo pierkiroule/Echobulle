@@ -42,6 +42,10 @@
         justify-items: center;
       }
 
+      .editor-toggle {
+        margin-bottom: 6px;
+      }
+
       .viewport {
         width: min(72vw, 540px);
         aspect-ratio: 1 / 1;
@@ -59,6 +63,28 @@
         width: 100%;
         height: 100%;
         display: block;
+      }
+
+      .source-list {
+        display: none;
+        gap: 10px;
+        flex-wrap: wrap;
+        justify-content: center;
+      }
+
+      .source-item {
+        padding: 8px 12px;
+        background: rgba(255, 255, 255, 0.06);
+        border-radius: 12px;
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        color: var(--fg);
+        font-size: 12px;
+        cursor: pointer;
+      }
+
+      .source-item.active {
+        border-color: rgba(122, 210, 255, 0.9);
+        box-shadow: 0 12px 34px rgba(122, 210, 255, 0.18);
       }
 
       .controls {
@@ -102,9 +128,11 @@
   </head>
   <body>
     <div class="shell">
+      <button id="toggle-edit" class="editor-toggle">Éditer le paysage</button>
       <div class="viewport" aria-label="Hublot audiovisuel" id="viewport">
         <canvas id="echo-canvas"></canvas>
       </div>
+      <div class="source-list" id="source-list" aria-label="Sources actives"></div>
       <div class="controls">
         <button id="import-audio">Importer MP3</button>
         <button id="import-video">Importer MP4</button>
@@ -114,7 +142,8 @@
       </div>
       <div class="hint">
         Prototype frugal : tout est local. Charge un MP3, un MP4 et quelques images pour un bain double-exposition. Le hublot
-        écoute le souffle (taps / drags), les particules dérivent lentement. Capture exporte une image PNG du moment.
+        écoute le souffle (taps / drags), les particules dérivent lentement. Mode Éditeur fige le flux pour déplacer les
+        éléments, Capture exporte une image PNG du moment.
       </div>
     </div>
 

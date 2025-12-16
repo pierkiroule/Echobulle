@@ -67,13 +67,19 @@ export function createParticlesEngine(state) {
     state.decayTurbulence();
   }
 
-  function draw(ctx, pulse) {
+  function draw(ctx, pulse, transform, editing = false) {
+    const scale = transform?.scale ?? 1;
+    const cx = (transform?.x ?? 0.5) * bounds.width;
+    const cy = (transform?.y ?? 0.5) * bounds.height;
     ctx.save();
+    ctx.translate(cx, cy);
+    ctx.scale(scale, scale);
+    ctx.translate(-cx, -cy);
     ctx.font = '14px "Inter", system-ui, sans-serif';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     particles.forEach((p) => {
-      const alpha = 0.45 + pulse * 0.25;
+      const alpha = (editing ? 0.36 : 0.45) + pulse * 0.25;
       const size = p.size * (0.8 + pulse * 0.4);
       ctx.fillStyle = `hsla(${p.hue}, 70%, ${48 + pulse * 12}%, ${alpha})`;
       ctx.shadowColor = 'rgba(106, 213, 255, 0.15)';

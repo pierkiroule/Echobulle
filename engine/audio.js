@@ -55,6 +55,13 @@ export function createAudioEngine(state) {
     }
   }
 
+  function pause() {
+    if (media) media.pause();
+    if (context.state === 'running' && context.suspend) {
+      context.suspend().catch(() => {});
+    }
+  }
+
   function sampleEnergy() {
     if (!media) return lastEnergy;
     if (context.state !== 'running') return lastEnergy;
@@ -92,6 +99,7 @@ export function createAudioEngine(state) {
   return {
     loadFile,
     resume,
+    pause,
     sampleEnergy,
     applyPulse,
     stop,

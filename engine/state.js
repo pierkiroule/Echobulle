@@ -1,5 +1,45 @@
 const DEFAULT_TAGS = ['bulle', 'souffle', 'lenteur', 'halo', 'onde', 'flux'];
 const DEFAULT_EMOJIS = ['●', '○', '◐', '◑', '◒', '◓'];
+const STORAGE_KEY = 'echobulle-layout-v2';
+
+const BASE_TRANSFORMS = {
+  video: { x: 0.5, y: 0.5, scale: 1 },
+  images: { x: 0.5, y: 0.5, scale: 1 },
+  particles: { x: 0.5, y: 0.5, scale: 1 },
+  audio: { x: 0.5, y: 0.5, scale: 1 },
+};
+
+function clamp01(value) {
+  return Math.min(1, Math.max(0, value));
+}
+
+function loadTransforms() {
+  if (typeof localStorage === 'undefined') return { ...BASE_TRANSFORMS };
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return { ...BASE_TRANSFORMS };
+    const parsed = JSON.parse(raw);
+    return { ...BASE_TRANSFORMS, ...parsed };
+  } catch (error) {
+    console.warn('Unable to load saved layout', error);
+    return { ...BASE_TRANSFORMS };
+  }
+}
+
+function persistTransforms(transforms) {
+  if (typeof localStorage === 'undefined') return;
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(transforms));
+  } catch (error) {
+    console.warn('Unable to persist layout', error);
+  }
+}
+
+function resolveKey(id) {
+  if (id === 'texte' || id === 'tags' || id === 'emoji') return 'particles';
+  if (id === 'image') return 'images';
+  return id;
+}
 
 export function createState() {
   const state = {
@@ -12,12 +52,20 @@ export function createState() {
     turbulence: { x: 0, y: 0, decay: 0.92 },
     tags: [...DEFAULT_TAGS],
     emojis: [...DEFAULT_EMOJIS],
+    editing: false,
+    selected: null,
+    transforms: loadTransforms(),
   };
 
   return {
     get snapshot() {
-      return { ...state, turbulence: { ...state.turbulence } };
+      return {
+        ...state,
+        turbulence: { ...state.turbulence },
+        transforms: { ...state.transforms },
+      };
     },
+    resolveKey,
     setEnergy(value) {
       state.energy = value;
     },
@@ -39,6 +87,34 @@ export function createState() {
     markImages(count) {
       state.imagesLoaded = count;
     },
+    setEditing(on) {
+      state.editing = on;
+    },
+    setSelected(id) {
+      state.selected = id;
+    },
+    getTransform(id) {
+      const key = resolveKey(id);
+      return state.transforms[key] || BASE_TRANSFORMS[key] || { x: 0.5, y: 0.5, scale: 1 };
+    },
+    updateTransform(id, next) {
+      const key = resolveKey(id);
+      const current = state.transforms[key] || BASE_TRANSFORMS[key];
+      const merged = {
+        ...current,
+        ...next,
+      };
+      merged.x = clamp01(merged.x);
+      merged.y = clamp01(merged.y);
+      merged.scale = Math.min(2.4, Math.max(0.25, merged.scale || 1));
+      state.transforms[key] = merged;
+      persistTransforms(state.transforms);
+    },
+    resetTransform(id) {
+      const key = resolveKey(id);
+      state.transforms[key] = { ...BASE_TRANSFORMS[key] };
+      persistTransforms(state.transforms);
+    },
     pushTurbulence(x, y) {
       state.turbulence.x = x;
       state.turbulence.y = y;
@@ -56,6 +132,10 @@ export function createState() {
       state.fadeBlack = 0;
       state.imagesLoaded = 0;
       state.turbulence = { x: 0, y: 0, decay: 0.92 };
+      state.editing = false;
+      state.selected = null;
+      state.transforms = { ...BASE_TRANSFORMS };
+      persistTransforms(state.transforms);
     },
   };
 }
