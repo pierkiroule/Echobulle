@@ -135,20 +135,20 @@
       <div class="source-list" id="source-list" aria-label="Sources actives"></div>
       <div class="controls">
         <button id="import-audio">Importer MP3</button>
-        <button id="import-video">Importer MP4</button>
-        <button id="import-images">Importer images</button>
+        <button id="import-video">Importer MP4 → bulles</button>
+        <button id="import-images">Importer images → bulles</button>
         <button id="capture">Capture PNG</button>
         <button id="reset-all">Stop / Reset</button>
       </div>
       <div class="hint">
-        Prototype frugal : tout est local. Charge un MP3, un MP4 et quelques images pour un bain double-exposition. Le hublot
-        écoute le souffle (taps / drags), les particules dérivent lentement. Mode Éditeur fige le flux pour déplacer les
-        éléments, Capture exporte une image PNG du moment.
+        Prototype frugal : tout est local. Charge un MP3, puis un MP4 ou des images : les sources sont perforées et
+        reconstituées en bulles GIF organiques. Le hublot écoute le souffle (taps / drags), les particules dérivent lentement.
+        Mode Éditeur fige le flux pour déplacer les couches, Capture exporte une image PNG du moment.
       </div>
     </div>
 
     <input id="file-audio" type="file" accept="audio/mpeg" hidden />
-    <input id="file-video" type="file" accept="video/mp4" hidden />
+    <input id="file-video" type="file" accept="video/mp4,video/webm" hidden />
     <input id="file-images" type="file" accept="image/png, image/jpeg" hidden multiple />
 
     <script type="module" src="./main.js"></script>

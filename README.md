@@ -1,17 +1,14 @@
-# ÉchoBulle — hublot audiovisuel local
-Ceci est un prototype frugal pour tester le cœur multimédia d’ÉchoBulle : tout fonctionne hors ligne, sans IA ni cloud.
+# ÉchoBulle — bulles GIF organiques
+Ceci est un prototype frugal, local, sans IA ni cloud. Toute image ou vidéo importée est perforée, fragmentée, stylisée, puis rejouée en bulles GIF organiques au sein d’un hublot circulaire unique.
 
 ## Concept
-Un hublot circulaire unique, tout en canvas :
-- vidéo MP4 dessinée image par image via MediaBunny (résolue via import map locale)
-- audio MP3 lu en boucle et analysé (pulse harmonique doux)
-- images importées fondues en double exposition (`screen`, `lighter`, etc.)
-- particules de tags et d’emojis flottants, influencés par souffle / drag
-- mode Éditeur pour figer le flux, sélectionner un élément (vidéo / image / tags / emoji / texte / audio symbolique), le déplacer, le redimensionner, sauvegarder sa position
-- capture PNG d’un instantané (capture vidéo 15 s prête à être branchée)
+- Import MP3 : nappe en boucle, énergie douce servant de pulse.
+- Import MP4 / images : jamais affichés bruts. Chaque source est perforée en 3–7 zones, fragmentée, lissée, masquée en bulles circulaires, puis animée en boucles GIF (play → reverse) avec double exposition (`screen`, `lighter`, `overlay`, `multiply`).
+- Particules de tags / emojis qui dérivent et respirent avec l’audio.
+- Mode Éditeur : fige le flux, sélectionne un type (bulles GIF / tags / emojis / texte / audio symbolique), déplace ou redimensionne, double tap pour reset.
+- Capture PNG instantanée du hublot.
 
 ## Usage
-Ouvre `index.html` dans un navigateur mobile ou desktop (Termux + Acode inclus). Importer un MP3, un MP4, puis des images.
-Taper / glisser dans le hublot pour souffler sur les particules. Bouton Éditer le paysage fige le flux, affiche la liste des sources et permet de déplacer / zoomer un élément au toucher (double tap = reset). Bouton Capture exporte une image.
+Ouvre `index.html` dans un navigateur mobile ou desktop (Termux + Acode inclus). Importe un MP3, puis un MP4 ou des images : les sources sont perforées et deviennent des bulles GIF flottantes. Taper / glisser dans le hublot souffle sur les particules. Active “Éditer le paysage” pour repositionner les couches, puis “Capture” pour enregistrer un instantané.
 
 > “Ceci est un prototype frugal pour tester le cœur multimédia d’ÉchoBulle.”

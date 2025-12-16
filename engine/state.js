@@ -3,8 +3,7 @@ const DEFAULT_EMOJIS = ['●', '○', '◐', '◑', '◒', '◓'];
 const STORAGE_KEY = 'echobulle-layout-v2';
 
 const BASE_TRANSFORMS = {
-  video: { x: 0.5, y: 0.5, scale: 1 },
-  images: { x: 0.5, y: 0.5, scale: 1 },
+  bubbles: { x: 0.5, y: 0.5, scale: 1 },
   particles: { x: 0.5, y: 0.5, scale: 1 },
   audio: { x: 0.5, y: 0.5, scale: 1 },
 };
@@ -37,7 +36,7 @@ function persistTransforms(transforms) {
 
 function resolveKey(id) {
   if (id === 'texte' || id === 'tags' || id === 'emoji') return 'particles';
-  if (id === 'image') return 'images';
+  if (id === 'image' || id === 'images' || id === 'bubbles') return 'bubbles';
   return id;
 }
 
@@ -48,7 +47,7 @@ export function createState() {
     exposureMode: 'screen',
     reverse: false,
     fadeBlack: 0,
-    imagesLoaded: 0,
+    bubblesLoaded: 0,
     turbulence: { x: 0, y: 0, decay: 0.92 },
     tags: [...DEFAULT_TAGS],
     emojis: [...DEFAULT_EMOJIS],
@@ -84,8 +83,8 @@ export function createState() {
     setFade(value) {
       state.fadeBlack = Math.max(0, Math.min(1, value));
     },
-    markImages(count) {
-      state.imagesLoaded = count;
+    markBubbles(count) {
+      state.bubblesLoaded = count;
     },
     setEditing(on) {
       state.editing = on;
@@ -130,7 +129,7 @@ export function createState() {
       state.energy = 0;
       state.reverse = false;
       state.fadeBlack = 0;
-      state.imagesLoaded = 0;
+      state.bubblesLoaded = 0;
       state.turbulence = { x: 0, y: 0, decay: 0.92 };
       state.editing = false;
       state.selected = null;

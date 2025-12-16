@@ -1,13 +1,11 @@
 import { createState } from './engine/state.js';
 import { createAudioEngine } from './engine/audio.js';
-import { createVideoEngine } from './engine/video.js';
-import { createImagesEngine } from './engine/images.js';
+import { createBubblesEngine } from './engine/bubbles.js';
 import { createParticlesEngine } from './engine/particles.js';
 
 const EXPOSURE_MODE = 'screen';
 const EDITABLE_ITEMS = [
-  { id: 'video', label: 'Vidéo' },
-  { id: 'images', label: 'Image' },
+  { id: 'bubbles', label: 'Bulles GIF' },
   { id: 'tags', label: 'Tags' },
   { id: 'emoji', label: 'Emoji' },
   { id: 'texte', label: 'Texte' },
@@ -20,8 +18,7 @@ export function createEchoBubble(root) {
   const viewport = root.querySelector('.viewport');
   const ctx = canvas.getContext('2d');
   const audioEngine = createAudioEngine(state);
-  const videoEngine = createVideoEngine(state);
-  const imagesEngine = createImagesEngine(state);
+  const bubblesEngine = createBubblesEngine(state);
   const particlesEngine = createParticlesEngine(state);
   const audioInput = document.getElementById('file-audio');
   const videoInput = document.getElementById('file-video');
@@ -84,7 +81,6 @@ export function createEchoBubble(root) {
       state.pushTurbulence((x - rect.width / 2) * 0.02, (y - rect.height / 2) * 0.02);
       state.nudgePulse(0.05);
       audioEngine.resume();
-      videoEngine.resume();
     }
   }
 
@@ -113,13 +109,11 @@ export function createEchoBubble(root) {
     state.setEditing(on);
     if (on) {
       audioEngine.pause();
-      videoEngine.pause();
-      state.setSelected(state.snapshot.selected || 'video');
+      state.setSelected(state.snapshot.selected || 'bubbles');
       buttons.edit.textContent = 'Reprendre le flux';
     } else {
       buttons.edit.textContent = 'Éditer le paysage';
       audioEngine.resume();
-      videoEngine.resume();
       state.setSelected(null);
     }
     dragging = false;
@@ -130,7 +124,7 @@ export function createEchoBubble(root) {
   }
 
   function hitTest(x, y, width, height) {
-    const order = ['images', 'video', 'particles'];
+    const order = ['bubbles', 'particles'];
     for (const id of order) {
       const transform = state.getTransform(id);
       const cx = transform.x * width;
@@ -140,8 +134,7 @@ export function createEchoBubble(root) {
       const rect = { x: cx - w / 2, y: cy - h / 2, w, h };
       if (x >= rect.x && x <= rect.x + rect.w && y >= rect.y && y <= rect.y + rect.h) {
         if (id === 'particles') return 'tags';
-        if (id === 'images') return 'images';
-        return 'video';
+        return 'bubbles';
       }
     }
     return null;
@@ -180,7 +173,7 @@ export function createEchoBubble(root) {
       const [p1, p2] = points;
       pinchBase = {
         distance: Math.max(10, Math.hypot(p2.x - p1.x, p2.y - p1.y)),
-        scale: state.getTransform(state.snapshot.selected || 'video').scale,
+        scale: state.getTransform(state.snapshot.selected || 'bubbles').scale,
       };
     }
   }
@@ -201,7 +194,7 @@ export function createEchoBubble(root) {
       const points = Array.from(activeTouches.values());
       const [p1, p2] = points;
       const dist = Math.hypot(p2.x - p1.x, p2.y - p1.y);
-      const key = state.snapshot.selected || 'video';
+      const key = state.snapshot.selected || 'bubbles';
       const base = pinchBase || { distance: dist, scale: state.getTransform(key).scale };
       const factor = dist / base.distance;
       state.updateTransform(key, { scale: base.scale * factor });
@@ -250,8 +243,7 @@ export function createEchoBubble(root) {
   function draw(timestamp = 0) {
     const { width, height } = viewport.getBoundingClientRect();
     const { editing, exposureMode, turbulence } = state.snapshot;
-    const videoTransform = state.getTransform('video');
-    const imageTransform = state.getTransform('images');
+    const bubbleTransform = state.getTransform('bubbles');
     const particleTransform = state.getTransform('particles');
     const selected = state.snapshot.selected;
     const particleSelected = selected === 'tags' || selected === 'emoji' || selected === 'texte';
@@ -264,23 +256,19 @@ export function createEchoBubble(root) {
       audioEngine.applyPulse(pulse);
       ctx.fillStyle = 'rgba(3, 5, 12, 0.08)';
       ctx.fillRect(0, 0, width, height);
-      videoEngine.draw(ctx, width, height, timestamp, videoTransform);
       ctx.save();
       ctx.globalCompositeOperation = exposureMode || EXPOSURE_MODE;
-      imagesEngine.draw(ctx, width, height, timestamp, pulse, imageTransform);
+      bubblesEngine.draw(ctx, width, height, timestamp, pulse, bubbleTransform, false);
       ctx.restore();
       particlesEngine.update(timestamp, pulse, turbulence);
       particlesEngine.draw(ctx, pulse, particleTransform, false);
     } else {
       ctx.fillStyle = 'rgba(4, 6, 12, 0.22)';
       ctx.fillRect(0, 0, width, height);
-      ctx.globalAlpha = selected && selected !== 'video' ? 0.55 : 1;
-      videoEngine.draw(ctx, width, height, timestamp, videoTransform);
-      ctx.globalAlpha = 1;
       ctx.save();
       ctx.globalCompositeOperation = exposureMode || EXPOSURE_MODE;
-      ctx.globalAlpha = selected && selected !== 'images' ? 0.55 : 1;
-      imagesEngine.draw(ctx, width, height, timestamp, state.snapshot.pulse, imageTransform);
+      ctx.globalAlpha = selected && selected !== 'bubbles' ? 0.5 : 1;
+      bubblesEngine.draw(ctx, width, height, timestamp, state.snapshot.pulse, bubbleTransform, true);
       ctx.globalAlpha = 1;
       ctx.restore();
       ctx.globalAlpha = selected && !particleSelected ? 0.55 : 1;
@@ -297,8 +285,7 @@ export function createEchoBubble(root) {
   buttons.images.addEventListener('click', () => imagesInput.click());
   buttons.reset.addEventListener('click', () => {
     audioEngine.reset();
-    videoEngine.reset();
-    imagesEngine.reset();
+    bubblesEngine.reset();
     particlesEngine.reset();
     state.reset();
     setEditingMode(false);
@@ -318,14 +305,14 @@ export function createEchoBubble(root) {
   videoInput.addEventListener('change', async (event) => {
     const file = event.target.files?.[0];
     if (!file) return;
-    await videoEngine.loadFile(file);
+    await bubblesEngine.fromVideo(file);
     videoInput.value = '';
   });
 
   imagesInput.addEventListener('change', async (event) => {
     const { files } = event.target;
     if (!files || files.length === 0) return;
-    await imagesEngine.loadFiles(files);
+    await bubblesEngine.fromImages(files);
     imagesInput.value = '';
   });
 
@@ -356,8 +343,7 @@ export function createEchoBubble(root) {
   return {
     state,
     audioEngine,
-    videoEngine,
-    imagesEngine,
+    bubblesEngine,
     particlesEngine,
     capturePNG,
   };
