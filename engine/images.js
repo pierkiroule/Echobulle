@@ -44,7 +44,7 @@ export function createImagesEngine(state) {
     state.markImagesLoaded(items.length);
   }
 
-  function update(timestamp) {
+  function update(timestamp, pulse) {
     if (items.length === 0) return;
 
     if (!showing) {
@@ -67,13 +67,14 @@ export function createImagesEngine(state) {
     }
   }
 
-  function draw(ctx, width, height, timestamp) {
+  function draw(ctx, width, height, timestamp, pulse) {
     if (items.length === 0) return;
     const current = items[index];
     if (!current.img || !current.ready || !current.img.complete) return;
 
     const fadeProgress = Math.min(1, (timestamp - transitionStart) / fadeDuration);
-    const alpha = switching ? 1 - fadeProgress * 0.3 : Math.min(0.75, 0.3 + fadeProgress);
+    const alphaBase = switching ? 1 - fadeProgress * 0.3 : Math.min(0.75, 0.3 + fadeProgress);
+    const alpha = alphaBase * (0.7 + pulse * 0.4);
 
     const iw = current.img.width;
     const ih = current.img.height;
@@ -85,7 +86,8 @@ export function createImagesEngine(state) {
 
     ctx.save();
     ctx.translate(width / 2, height / 2);
-    ctx.rotate((current.rotation * Math.PI) / 180);
+    const rotationPulse = current.rotation + Math.sin(timestamp * 0.00015) * 6 * pulse;
+    ctx.rotate((rotationPulse * Math.PI) / 180);
     ctx.globalAlpha = alpha;
     ctx.drawImage(current.img, -drawW / 2, -drawH / 2, drawW, drawH);
     ctx.globalAlpha = 1;

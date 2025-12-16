@@ -14,3 +14,8 @@ Cette version garde le hublot unique mais passe tout dans un seul canvas :
 - La vidéo MP4 est dessinée puis mélangée aux images importées via `globalCompositeOperation` (modes écran, lighter...).
 - Les images (PNG/JPG) défilent en fondu doux avec rotation lente, en double exposition au-dessus de la vidéo.
 - Les particules abstraites restent au-dessus, légères et hypnotiques. Le tout reste local, frugal et sans dépendance externe.
+
+## V2 bis — Pulse harmonique
+- Un `pulse` maître (0.4 par défaut) est lissé depuis l’énergie audio moyenne et sert de tempo unique.
+- Les attracteurs (émojis) orbitent lentement selon ce pulse, les particules/tag y dérivent sans collisions brusques.
+- Les filtres audio (gain + passe-bas) suivent aussi le pulse pour garder un souffle doux et cohérent.
