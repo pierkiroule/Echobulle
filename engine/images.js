@@ -19,6 +19,7 @@ export function createImagesEngine(state) {
       name: file.name,
       url: URL.createObjectURL(file),
       img: null,
+      ready: false,
       scale: 0.6 + Math.random() * 0.5,
       rotation: (Math.random() - 0.5) * 12,
     }));
@@ -35,6 +36,7 @@ export function createImagesEngine(state) {
       image.crossOrigin = 'anonymous';
       image.onload = () => {
         item.img = image;
+        item.ready = true;
       };
       image.src = item.url;
     });
@@ -68,7 +70,7 @@ export function createImagesEngine(state) {
   function draw(ctx, width, height, timestamp) {
     if (items.length === 0) return;
     const current = items[index];
-    if (!current.img) return;
+    if (!current.img || !current.ready || !current.img.complete) return;
 
     const fadeProgress = Math.min(1, (timestamp - transitionStart) / fadeDuration);
     const alpha = switching ? 1 - fadeProgress * 0.3 : Math.min(0.75, 0.3 + fadeProgress);

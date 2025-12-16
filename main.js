@@ -9,6 +9,9 @@ const viewport = document.getElementById('viewport');
 const canvas = document.getElementById('echo-canvas');
 const ctx = canvas.getContext('2d');
 
+// Simple switch for the composite blend mode used when merging images with the video.
+const EXPOSURE_MODE = 'screen';
+
 const audioInput = document.getElementById('file-audio');
 const videoInput = document.getElementById('file-video');
 const imagesInput = document.getElementById('file-images');
@@ -39,21 +42,23 @@ function resizeCanvas() {
 
 function draw(timestamp = 0) {
   const { width, height } = viewport.getBoundingClientRect();
-  ctx.clearRect(0, 0, width, height);
-  ctx.fillStyle = '#03050a';
-  ctx.fillRect(0, 0, width, height);
   ctx.globalCompositeOperation = 'source-over';
+  ctx.fillStyle = 'rgba(3, 5, 10, 0.08)';
+  ctx.fillRect(0, 0, width, height);
 
-  // 1) Vidéo dessinée en premier
+  // 1) Video drawn into the canvas.
   videoEngine.draw(ctx, width, height);
 
-  // 2) Particules
+  // 2) Double exposure: blend imported images over the video using a selectable mode.
+  imagesEngine.update(timestamp);
+  ctx.save();
+  ctx.globalCompositeOperation = EXPOSURE_MODE;
+  imagesEngine.draw(ctx, width, height, timestamp);
+  ctx.restore();
+
+  // 3) Particles rendered above using their own blend mode.
   particlesEngine.update(timestamp);
   particlesEngine.draw(ctx);
-
-  // 3) Images overlay
-  imagesEngine.update(timestamp);
-  imagesEngine.draw(ctx, width, height, timestamp);
 
   requestAnimationFrame(draw);
 }
