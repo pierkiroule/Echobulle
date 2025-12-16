@@ -40,6 +40,8 @@ function resizeCanvas() {
 function draw(timestamp = 0) {
   const { width, height } = viewport.getBoundingClientRect();
   ctx.clearRect(0, 0, width, height);
+  ctx.fillStyle = '#03050a';
+  ctx.fillRect(0, 0, width, height);
   ctx.globalCompositeOperation = 'source-over';
 
   // 1) Vidéo dessinée en premier
@@ -112,9 +114,7 @@ viewport.addEventListener('click', (event) => {
   if (audioEngine.context && audioEngine.context.state === 'suspended') {
     audioEngine.context.resume();
   }
-  if (videoEngine.element.paused && videoEngine.isReady()) {
-    videoEngine.element.play().catch(() => {});
-  }
+  videoEngine.resume();
 });
 
 const resizeObserver = new ResizeObserver(resizeCanvas);

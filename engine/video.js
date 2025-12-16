@@ -31,9 +31,12 @@ export function createVideoEngine(state) {
     return new Promise((resolve, reject) => {
       const onLoaded = () => {
         ready = true;
-        videoEl.play().catch(reject);
+        // Make the first frame available even if autoplay is blocked.
+        videoEl.currentTime = 0;
         state.markVideoLoaded(file.name);
         cleanup();
+        // Attempt playback but do not treat a blocked promise as fatal.
+        videoEl.play().catch(() => {});
         resolve();
       };
 
@@ -55,6 +58,11 @@ export function createVideoEngine(state) {
 
   function isReady() {
     return ready && videoEl.videoWidth > 0 && videoEl.readyState >= 2;
+  }
+
+  function resume() {
+    if (!isReady()) return;
+    videoEl.play().catch(() => {});
   }
 
   function draw(ctx, width, height) {
@@ -90,6 +98,7 @@ export function createVideoEngine(state) {
     reset,
     isReady,
     draw,
+    resume,
     get element() {
       return videoEl;
     },
