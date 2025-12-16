@@ -10,7 +10,7 @@ Objectif V1 : vérifier que l’audio MP3 et la vidéo MP4 tournent ensemble, en
 5. L’export/capture sera branché plus tard : le code expose déjà les moteurs audio/vidéo pour y accrocher une capture locale.
 
 ## V2 — Paysage visuel vivant
-Cette version ajoute une surcouche visuelle locale :
-- Particules abstraites et lentes, rendues sur un canvas au-dessus de la vidéo.
-- Images importées (PNG/JPG) qui défilent en fondu, une par une, avec rotation douce optionnelle.
+Cette version ajoute une surcouche visuelle locale, rendue dans un seul canvas :
+- La vidéo MP4 est dessinée dans le canvas puis surmontée de particules abstraites lentes.
+- Des images importées (PNG/JPG) défilent en fondu doux, une par une, avec rotation optionnelle.
 - Le tout reste local, frugal, hypnotique, sans dépendance externe.

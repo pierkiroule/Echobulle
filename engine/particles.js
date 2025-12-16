@@ -4,24 +4,21 @@ const PALETTE = [
   'rgba(255,199,128,0.2)',
 ];
 
-export function createParticlesEngine(canvas, state) {
-  const ctx = canvas.getContext('2d');
+export function createParticlesEngine(state) {
   const particles = [];
-  let running = true;
+  let width = 0;
+  let height = 0;
   let lastTime = 0;
   let impulse = null;
 
-  function resize() {
-    const ratio = window.devicePixelRatio || 1;
-    const { width, height } = canvas.getBoundingClientRect();
-    canvas.width = Math.round(width * ratio);
-    canvas.height = Math.round(height * ratio);
-    ctx.scale(ratio, ratio);
+  function setBounds(w, h) {
+    width = w;
+    height = h;
+    initParticles(120);
   }
 
   function initParticles(count = 120) {
     particles.length = 0;
-    const { width, height } = canvas.getBoundingClientRect();
     for (let i = 0; i < count; i += 1) {
       particles.push({
         x: Math.random() * width,
@@ -35,11 +32,14 @@ export function createParticlesEngine(canvas, state) {
     }
   }
 
-  function update(dt) {
-    const { width, height } = canvas.getBoundingClientRect();
+  function update(timestamp) {
+    if (!width || !height) return;
+    const dt = lastTime ? Math.min(32, timestamp - lastTime) / 1000 : 0;
+    lastTime = timestamp;
+
     particles.forEach((p) => {
-      const driftX = Math.sin((lastTime * 0.00018) + p.sway) * 0.45;
-      const driftY = Math.cos((lastTime * 0.00012) + p.sway) * 0.35;
+      const driftX = Math.sin(timestamp * 0.00018 + p.sway) * 0.45;
+      const driftY = Math.cos(timestamp * 0.00012 + p.sway) * 0.35;
 
       p.x += driftX * p.speed * dt;
       p.y += driftY * p.speed * dt;
@@ -64,10 +64,11 @@ export function createParticlesEngine(canvas, state) {
     }
   }
 
-  function draw() {
-    const { width, height } = canvas.getBoundingClientRect();
-    ctx.clearRect(0, 0, width, height);
+  function draw(ctx) {
+    if (!width || !height) return;
+    ctx.save();
     ctx.globalCompositeOperation = 'lighter';
+    ctx.globalAlpha = 0.8;
     particles.forEach((p) => {
       ctx.beginPath();
       ctx.fillStyle = p.hue;
@@ -75,15 +76,8 @@ export function createParticlesEngine(canvas, state) {
       ctx.fill();
     });
     ctx.globalCompositeOperation = 'source-over';
-  }
-
-  function loop(timestamp) {
-    if (!running) return;
-    const dt = lastTime ? Math.min(32, timestamp - lastTime) / 1000 : 0;
-    lastTime = timestamp;
-    update(dt);
-    draw();
-    requestAnimationFrame(loop);
+    ctx.globalAlpha = 1;
+    ctx.restore();
   }
 
   function turbulence(x, y) {
@@ -96,22 +90,11 @@ export function createParticlesEngine(canvas, state) {
     impulse = null;
   }
 
-  resize();
-  initParticles(120);
-  requestAnimationFrame(loop);
-
-  const observer = new ResizeObserver(() => {
-    ctx.setTransform(1, 0, 0, 1, 0, 0);
-    resize();
-  });
-  observer.observe(canvas);
-
   return {
+    setBounds,
+    update,
+    draw,
     turbulence,
     reset,
-    destroy() {
-      running = false;
-      observer.disconnect();
-    },
   };
 }

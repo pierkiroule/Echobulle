@@ -6,18 +6,17 @@ import { createState } from './engine/state.js';
 
 const state = createState();
 const viewport = document.getElementById('viewport');
-const videoEl = document.getElementById('echo-video');
-const particlesCanvas = document.getElementById('particle-layer');
-const overlayImagesContainer = document.getElementById('overlay-images');
+const canvas = document.getElementById('echo-canvas');
+const ctx = canvas.getContext('2d');
 
 const audioInput = document.getElementById('file-audio');
 const videoInput = document.getElementById('file-video');
 const imagesInput = document.getElementById('file-images');
 
 const audioEngine = createAudioEngine(state);
-const videoEngine = createVideoEngine(state, videoEl);
-const particlesEngine = createParticlesEngine(particlesCanvas, state);
-const imagesEngine = createImagesEngine(overlayImagesContainer, state);
+const videoEngine = createVideoEngine(state);
+const particlesEngine = createParticlesEngine(state);
+const imagesEngine = createImagesEngine(state);
 
 const buttons = {
   audio: document.getElementById('import-audio'),
@@ -26,17 +25,40 @@ const buttons = {
   reset: document.getElementById('reset-all'),
 };
 
-buttons.audio.addEventListener('click', () => {
-  audioInput.click();
-});
+function resizeCanvas() {
+  const ratio = window.devicePixelRatio || 1;
+  const { width, height } = viewport.getBoundingClientRect();
+  canvas.width = Math.round(width * ratio);
+  canvas.height = Math.round(height * ratio);
+  canvas.style.width = `${width}px`;
+  canvas.style.height = `${height}px`;
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.scale(ratio, ratio);
+  particlesEngine.setBounds(width, height);
+}
 
-buttons.video.addEventListener('click', () => {
-  videoInput.click();
-});
+function draw(timestamp = 0) {
+  const { width, height } = viewport.getBoundingClientRect();
+  ctx.clearRect(0, 0, width, height);
+  ctx.globalCompositeOperation = 'source-over';
 
-buttons.images.addEventListener('click', () => {
-  imagesInput.click();
-});
+  // 1) Vidéo dessinée en premier
+  videoEngine.draw(ctx, width, height);
+
+  // 2) Particules
+  particlesEngine.update(timestamp);
+  particlesEngine.draw(ctx);
+
+  // 3) Images overlay
+  imagesEngine.update(timestamp);
+  imagesEngine.draw(ctx, width, height, timestamp);
+
+  requestAnimationFrame(draw);
+}
+
+buttons.audio.addEventListener('click', () => audioInput.click());
+buttons.video.addEventListener('click', () => videoInput.click());
+buttons.images.addEventListener('click', () => imagesInput.click());
 
 buttons.reset.addEventListener('click', () => {
   audioEngine.reset();
@@ -70,7 +92,7 @@ videoInput.addEventListener('change', async (event) => {
   }
 });
 
-imagesInput.addEventListener('change', async (event) => {
+imagesInput.addEventListener('change', (event) => {
   const files = event.target.files;
   if (!files || files.length === 0) return;
   try {
@@ -87,7 +109,18 @@ viewport.addEventListener('click', (event) => {
   const x = event.clientX - rect.left;
   const y = event.clientY - rect.top;
   particlesEngine.turbulence(x, y);
+  if (audioEngine.context && audioEngine.context.state === 'suspended') {
+    audioEngine.context.resume();
+  }
+  if (videoEngine.element.paused && videoEngine.isReady()) {
+    videoEngine.element.play().catch(() => {});
+  }
 });
+
+const resizeObserver = new ResizeObserver(resizeCanvas);
+resizeObserver.observe(viewport);
+resizeCanvas();
+requestAnimationFrame(draw);
 
 // Préparation pour un futur export : les moteurs exposent un accès simple
 // au flux audio/vidéo actuel. L'implémentation concrète sera ajoutée plus tard.

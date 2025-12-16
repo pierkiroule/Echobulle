@@ -46,42 +46,12 @@
         position: relative;
       }
 
-      .viewport video,
-      .overlay-canvas,
-      .overlay-images {
+      #echo-canvas {
         position: absolute;
         inset: 0;
-      }
-
-      .viewport video {
         width: 100%;
         height: 100%;
-        object-fit: cover;
         display: block;
-        filter: contrast(1.05) saturate(1.08) brightness(0.95);
-        background: #000;
-        z-index: 1;
-      }
-
-      .overlay-canvas {
-        z-index: 2;
-        pointer-events: none;
-      }
-
-      .overlay-images {
-        z-index: 3;
-        display: grid;
-        place-items: center;
-        pointer-events: none;
-      }
-
-      .overlay-image {
-        max-width: 90%;
-        max-height: 90%;
-        filter: drop-shadow(0 16px 40px rgba(0, 0, 0, 0.45));
-        transition: opacity 0.8s ease, transform 8s ease;
-        opacity: 0;
-        transform-origin: center;
       }
 
       .controls {
@@ -126,9 +96,7 @@
   <body>
     <div class="shell">
       <div class="viewport" aria-label="Hublot audiovisuel" id="viewport">
-        <video id="echo-video" playsinline muted></video>
-        <canvas id="particle-layer" class="overlay-canvas"></canvas>
-        <div class="overlay-images" id="overlay-images"></div>
+        <canvas id="echo-canvas"></canvas>
       </div>
       <div class="controls">
         <button id="import-audio">Importer MP3</button>
