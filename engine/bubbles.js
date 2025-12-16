@@ -9,7 +9,6 @@ const FRICTION = 0.985;
 const BOUNCE_DAMPING = 0.92;
 const SWITCH_INTERVAL = 10000;
 const SWITCH_FADE = 1200;
-const STAR_COUNT = 120;
 
 function randomRange(min, max) {
   return Math.random() * (max - min) + min;
@@ -97,16 +96,16 @@ async function videoFragmentsFromFile(file) {
   video.crossOrigin = 'anonymous';
   video.preload = 'auto';
 
-  // Ensure metadata is ready before seeking or drawing frames.
   if (video.readyState < 1) {
     await new Promise((resolve) => video.addEventListener('loadedmetadata', resolve, { once: true }));
   }
 
-  // Kick playback after a user gesture has opened the file picker; ignore rejections silently.
-  await video.play().catch(() => {});
+  // Ensure the first frame is actually decoded before sampling.
   if (video.readyState < 2) {
     await new Promise((resolve) => video.addEventListener('loadeddata', resolve, { once: true }));
   }
+
+  await video.play().catch(() => {});
 
   const duration = Math.max(1, video.duration || 6);
   const count = Math.floor(Math.random() * (GIF_MAX - GIF_MIN + 1)) + GIF_MIN;
@@ -115,15 +114,31 @@ async function videoFragmentsFromFile(file) {
   async function captureFrame(time, radius, crop) {
     const targetTime = Math.min(duration - 0.05, Math.max(0.05, time));
     return new Promise((resolve) => {
+      let settled = false;
+      const finish = (frame) => {
+        if (settled) return;
+        settled = true;
+        resolve(frame);
+      };
+
       const handler = () => {
         if (video.videoWidth === 0 || video.videoHeight === 0 || video.readyState < 2) {
-          resolve(null);
+          finish(null);
           return;
         }
-        resolve(maskFrame(video, crop.sx, crop.sy, crop.sw, crop.sh, radius, time));
+        finish(maskFrame(video, crop.sx, crop.sy, crop.sw, crop.sh, radius, time));
       };
+
+      const timeout = setTimeout(() => finish(null), 900);
       video.currentTime = targetTime;
-      video.addEventListener('seeked', handler, { once: true });
+      video.addEventListener(
+        'seeked',
+        () => {
+          clearTimeout(timeout);
+          handler();
+        },
+        { once: true },
+      );
     });
   }
 
@@ -148,6 +163,21 @@ async function videoFragmentsFromFile(file) {
     }
   }
 
+  // Fallback: if no fragments were captured, try to salvage the current frame once to avoid empty bubbles.
+  if (!fragmentsOut.length && video.videoWidth > 0 && video.videoHeight > 0) {
+    const radius = randomRange(42, 72);
+    const fallback = maskFrame(
+      video,
+      0,
+      0,
+      Math.max(64, video.videoWidth * 0.5),
+      Math.max(64, video.videoHeight * 0.5),
+      radius,
+      performance.now() * 0.001,
+    );
+    fragmentsOut.push({ frames: [fallback], radius });
+  }
+
   video.pause();
   URL.revokeObjectURL(url);
   return fragmentsOut;
@@ -160,24 +190,12 @@ export function createBubblesEngine(state) {
   let activeSet = -1;
   let switchStart = 0;
   let fading = false;
-  let stars = [];
-
-  function buildStars() {
-    stars = Array.from({ length: STAR_COUNT }, () => ({
-      x: Math.random(),
-      y: Math.random(),
-      size: randomRange(0.5, 1.4),
-      twinkle: Math.random() * Math.PI * 2,
-    }));
-  }
-
   function reset() {
     bubbles = [];
     fragmentSets = [];
     activeSet = -1;
     switchStart = 0;
     fading = false;
-    buildStars();
     placeBubbles(bubbles, bounds.width, bounds.height);
   }
 
@@ -277,21 +295,6 @@ export function createBubblesEngine(state) {
     });
   }
 
-  function drawStars(ctx, timestamp, pulse) {
-    const { width, height } = bounds;
-    ctx.save();
-    ctx.globalCompositeOperation = 'screen';
-    stars.forEach((star) => {
-      const tw = Math.sin(timestamp * 0.001 + star.twinkle) * 0.5 + 0.5;
-      const alpha = 0.15 + (tw + pulse * 0.6) * 0.25;
-      ctx.fillStyle = `rgba(160, 210, 255, ${alpha})`;
-      ctx.beginPath();
-      ctx.arc(star.x * width, star.y * height, star.size + pulse * 0.4, 0, Math.PI * 2);
-      ctx.fill();
-    });
-    ctx.restore();
-  }
-
   function drawBubble(ctx, bubble, timestamp, pulse) {
     const wobble = 1 + Math.sin(timestamp * 0.002 + bubble.pulsePhase) * 1.2;
     const opacityBase = 0.9 + Math.sin(timestamp * 0.0012 + bubble.opacityPhase) * 0.04;
@@ -328,7 +331,6 @@ export function createBubblesEngine(state) {
   }
 
   function draw(ctx, timestamp, pulse) {
-    drawStars(ctx, timestamp, pulse);
     bubbles.forEach((bubble) => drawBubble(ctx, bubble, timestamp, pulse));
     if (fading) {
       const progress = Math.min(1, (timestamp - switchStart) / SWITCH_FADE);
