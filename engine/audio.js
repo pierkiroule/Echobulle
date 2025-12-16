@@ -32,15 +32,16 @@ export function createAudioEngine(state) {
   }
 
   async function loadFile(file) {
+    stop();
     clip = new AudioClip(file);
     const mediaElement = clip.mediaElement || new Audio();
-    mediaElement.src = clip.src || URL.createObjectURL(file);
     mediaElement.loop = true;
     mediaElement.crossOrigin = 'anonymous';
     mediaElement.preload = 'auto';
     mediaElement.volume = 0.65;
     media = mediaElement;
     connect(mediaElement);
+    mediaElement.src = clip.src || URL.createObjectURL(file);
     await mediaElement.play().catch(() => {});
     state.nudgePulse(0.05);
   }

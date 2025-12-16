@@ -3,7 +3,7 @@ Ceci est un prototype frugal pour tester le cœur multimédia d’ÉchoBulle : t
 
 ## Concept
 Un hublot circulaire unique, tout en canvas :
-- vidéo MP4 dessinée image par image via MediaBunny
+- vidéo MP4 dessinée image par image via MediaBunny (résolue via import map locale)
 - audio MP3 lu en boucle et analysé (pulse harmonique doux)
 - images importées fondues en double exposition (`screen`, `lighter`, etc.)
 - particules de tags et d’emojis flottants, influencés par souffle / drag

@@ -2,7 +2,7 @@ import { BunnyEngine, VideoClip } from 'mediabunny';
 
 export function createVideoEngine(state) {
   const bunny = new BunnyEngine();
-  const video = document.createElement('video');
+  let video = document.createElement('video');
   video.muted = true;
   video.loop = true;
   video.playsInline = true;
@@ -15,14 +15,21 @@ export function createVideoEngine(state) {
 
   async function loadFile(file) {
     clip = new VideoClip(file);
-    const src = clip.src || URL.createObjectURL(file);
-    video.src = src;
+    const media = clip.mediaElement || video;
+    video = media;
+    media.muted = true;
+    media.loop = true;
+    media.playsInline = true;
+    media.crossOrigin = 'anonymous';
     ready = false;
-    await video.play().catch(() => {});
-    video.pause();
-    video.addEventListener('loadeddata', () => {
+    const onReady = () => {
       ready = true;
-    }, { once: true });
+    };
+    media.addEventListener('loadeddata', onReady, { once: true });
+    media.src = clip.src || URL.createObjectURL(file);
+    media.load();
+    await media.play().catch(() => {});
+    media.pause();
   }
 
   function resume() {
