@@ -107,6 +107,8 @@
       </div>
       <div class="controls">
         <button id="import-audio">Importer MP3</button>
+        <button id="import-video">Importer MP4</button>
+        <button id="import-image">Importer image</button>
         <button id="capture">Capture PNG</button>
         <button id="reset-all">Stop / Reset</button>
       </div>
@@ -118,6 +120,8 @@
     </div>
 
     <input id="file-audio" type="file" accept="audio/mpeg" hidden />
+    <input id="file-video" type="file" accept="video/mp4,video/webm" hidden />
+    <input id="file-image" type="file" accept="image/png,image/jpeg" hidden />
 
     <script type="module" src="./main.js"></script>
   </body>

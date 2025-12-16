@@ -1,6 +1,9 @@
 const PALETTE = ['#8acbff', '#a3a6ff', '#ffdca8', '#f2a6ff', '#9ff3e0'];
 const BASE_RADIUS = 46;
 const TAG_RADIUS = 64;
+const GIF_MIN = 3;
+const GIF_MAX = 7;
+const GIF_FRAMES = 14;
 const FRICTION = 0.985;
 const BOUNCE_DAMPING = 0.92;
 
@@ -20,6 +23,8 @@ function createBubble(label, radius) {
     pulsePhase: Math.random() * Math.PI * 2,
     type: 'emoji',
     opacityPhase: Math.random() * Math.PI * 2,
+    frames: null,
+    frameOffset: Math.floor(Math.random() * GIF_FRAMES),
   };
 }
 
@@ -54,11 +59,111 @@ function placeBubbles(bubbles, width, height) {
   });
 }
 
+function maskFrame(source, sx, sy, sw, sh, radius, jitterPhase = 0) {
+  const size = Math.round(radius * 2);
+  const off = document.createElement('canvas');
+  off.width = size;
+  off.height = size;
+  const c = off.getContext('2d');
+  const wobble = 1 + Math.sin(jitterPhase) * 0.04;
+  const dx = (Math.sin(jitterPhase * 0.8) * 0.06 + 0.12) * radius;
+  const dy = (Math.cos(jitterPhase * 0.7) * 0.05 - 0.08) * radius;
+
+  c.save();
+  c.translate(size / 2, size / 2);
+  c.beginPath();
+  c.arc(0, 0, radius, 0, Math.PI * 2);
+  c.clip();
+  c.globalAlpha = 0.82;
+  c.filter = 'saturate(1.05) contrast(1.06)';
+  c.drawImage(
+    source,
+    sx,
+    sy,
+    sw,
+    sh,
+    -radius + dx,
+    -radius + dy,
+    radius * 2 * wobble,
+    radius * 2 * wobble,
+  );
+  c.restore();
+
+  return off;
+}
+
+async function imageFragmentsFromBitmap(bitmap) {
+  const count = Math.floor(Math.random() * (GIF_MAX - GIF_MIN + 1)) + GIF_MIN;
+  const fragmentsOut = [];
+  for (let i = 0; i < count; i += 1) {
+    const radius = randomRange(40, 70);
+    const sw = Math.max(40, bitmap.width * randomRange(0.24, 0.44));
+    const sh = Math.max(40, bitmap.height * randomRange(0.24, 0.44));
+    const sx = randomRange(0, Math.max(1, bitmap.width - sw));
+    const sy = randomRange(0, Math.max(1, bitmap.height - sh));
+    const frames = [];
+    for (let f = 0; f < GIF_FRAMES; f += 1) {
+      frames.push(maskFrame(bitmap, sx, sy, sw, sh, radius, (f / GIF_FRAMES) * Math.PI * 2));
+    }
+    fragmentsOut.push({ frames, radius });
+  }
+  return fragmentsOut;
+}
+
+async function videoFragmentsFromFile(file) {
+  const url = URL.createObjectURL(file);
+  const video = document.createElement('video');
+  video.src = url;
+  video.muted = true;
+  video.loop = true;
+  video.playsInline = true;
+  await video.play().catch(() => {});
+  await new Promise((resolve) => video.addEventListener('loadeddata', resolve, { once: true }));
+
+  const duration = Math.max(1, video.duration || 6);
+  const count = Math.floor(Math.random() * (GIF_MAX - GIF_MIN + 1)) + GIF_MIN;
+  const fragmentsOut = [];
+
+  async function captureFrame(time, radius, crop) {
+    return new Promise((resolve) => {
+      const handler = () => {
+        resolve(maskFrame(video, crop.sx, crop.sy, crop.sw, crop.sh, radius, time));
+      };
+      video.currentTime = Math.min(duration - 0.05, Math.max(0.05, time));
+      video.addEventListener('seeked', handler, { once: true });
+    });
+  }
+
+  for (let i = 0; i < count; i += 1) {
+    const start = randomRange(0, Math.max(0.2, duration - 0.6));
+    const windowSize = randomRange(0.4, 1.8);
+    const frames = [];
+    const radius = randomRange(42, 72);
+    const sw = Math.max(48, video.videoWidth * randomRange(0.22, 0.48));
+    const sh = Math.max(48, video.videoHeight * randomRange(0.22, 0.48));
+    const sx = randomRange(0, Math.max(1, video.videoWidth - sw));
+    const sy = randomRange(0, Math.max(1, video.videoHeight - sh));
+    const crop = { sx, sy, sw, sh };
+    for (let f = 0; f < GIF_FRAMES; f += 1) {
+      const t = start + (windowSize * f) / GIF_FRAMES;
+      // eslint-disable-next-line no-await-in-loop
+      const frame = await captureFrame(t, radius, crop);
+      frames.push(frame);
+    }
+    fragmentsOut.push({ frames, radius });
+  }
+
+  video.pause();
+  URL.revokeObjectURL(url);
+  return fragmentsOut;
+}
+
 export function createBubblesEngine(state) {
   let bubbles = [];
   let bounds = { width: 600, height: 600 };
   let tagBubble = createTagBubble();
   let tagSwitchTime = 0;
+  let fragments = [];
 
   function reset() {
     bubbles = state.snapshot.emojis.map((emoji) => {
@@ -66,6 +171,7 @@ export function createBubblesEngine(state) {
       bubble.type = 'emoji';
       return bubble;
     });
+    fragments = [];
     tagBubble = createTagBubble();
     tagSwitchTime = 0;
     bubbles.push(tagBubble);
@@ -124,6 +230,18 @@ export function createBubblesEngine(state) {
     b.vy = (b.vy + p * ny) * BOUNCE_DAMPING;
   }
 
+  function adoptFragments(fragmentList) {
+    fragmentList.forEach(({ frames, radius }) => {
+      const bubble = createBubble('', radius);
+      bubble.type = 'gif';
+      bubble.frames = frames;
+      bubble.color = PALETTE[Math.floor(Math.random() * PALETTE.length)];
+      bubbles.splice(bubbles.length - 1, 0, bubble);
+    });
+    fragments = fragments.concat(fragmentList);
+    placeBubbles(bubbles, bounds.width, bounds.height);
+  }
+
   function update(timestamp, pulse) {
     const t = timestamp * 0.001;
     const readyTag = state.advanceTag(timestamp);
@@ -167,18 +285,34 @@ export function createBubblesEngine(state) {
     ctx.translate(bubble.x, bubble.y);
     ctx.beginPath();
     ctx.arc(0, 0, bubble.radius, 0, Math.PI * 2);
-    ctx.fillStyle = bubble.color;
+    ctx.clip();
+
+    if (bubble.type === 'gif' && bubble.frames?.length) {
+      const frameIndex = Math.floor(((timestamp * 0.012 + bubble.frameOffset) % bubble.frames.length + bubble.frames.length) % bubble.frames.length);
+      ctx.globalAlpha = alpha * 0.96;
+      ctx.drawImage(bubble.frames[frameIndex], -bubble.radius, -bubble.radius, bubble.radius * 2, bubble.radius * 2);
+    } else {
+      ctx.fillStyle = bubble.color;
+      ctx.globalAlpha = alpha * 0.92;
+      ctx.fill();
+    }
+
+    ctx.restore();
+
+    ctx.save();
+    ctx.translate(bubble.x, bubble.y);
+    ctx.beginPath();
+    ctx.arc(0, 0, bubble.radius, 0, Math.PI * 2);
+    ctx.lineWidth = 2.4 + (wobble - 1) * 0.7 + pulse * 0.4;
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.65)';
     ctx.globalAlpha = alpha;
-    ctx.fill();
-    ctx.lineWidth = 2.5 + (wobble - 1) * 0.8 + pulse * 0.5;
-    ctx.strokeStyle = 'rgba(255, 255, 255, 0.4)';
     ctx.stroke();
     ctx.font = bubble.type === 'tag' ? '16px "Inter", sans-serif' : '30px "Apple Color Emoji", "Segoe UI Emoji"';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.fillStyle = 'rgba(0, 0, 0, 0.35)';
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.38)';
     const label = bubble.type === 'tag' ? bubble.label : bubble.label;
-    ctx.fillText(label, 0, -1);
+    if (label) ctx.fillText(label, 0, -1);
     ctx.restore();
   }
 
@@ -197,5 +331,16 @@ export function createBubblesEngine(state) {
     });
   }
 
-  return { setBounds, update, draw, reset, impulse };
+  async function ingestImage(file) {
+    const bitmap = await createImageBitmap(file);
+    const fragmentList = await imageFragmentsFromBitmap(bitmap);
+    adoptFragments(fragmentList);
+  }
+
+  async function ingestVideo(file) {
+    const fragmentList = await videoFragmentsFromFile(file);
+    adoptFragments(fragmentList);
+  }
+
+  return { setBounds, update, draw, reset, impulse, ingestImage, ingestVideo };
 }

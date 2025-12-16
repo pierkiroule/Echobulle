@@ -10,8 +10,12 @@ export function createEchoBubble(root) {
   const audioEngine = createAudioEngine(state);
   const bubblesEngine = createBubblesEngine(state);
   const audioInput = document.getElementById('file-audio');
+  const videoInput = document.getElementById('file-video');
+  const imageInput = document.getElementById('file-image');
   const buttons = {
     audio: document.getElementById('import-audio'),
+    video: document.getElementById('import-video'),
+    image: document.getElementById('import-image'),
     reset: document.getElementById('reset-all'),
     capture: document.getElementById('capture'),
   };
@@ -64,6 +68,8 @@ export function createEchoBubble(root) {
   }
 
   buttons.audio.addEventListener('click', () => audioInput.click());
+  buttons.video.addEventListener('click', () => videoInput.click());
+  buttons.image.addEventListener('click', () => imageInput.click());
   buttons.reset.addEventListener('click', () => {
     audioEngine.reset();
     bubblesEngine.reset();
@@ -76,6 +82,20 @@ export function createEchoBubble(root) {
     if (!file) return;
     await audioEngine.loadFile(file);
     audioInput.value = '';
+  });
+
+  videoInput.addEventListener('change', async (event) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    await bubblesEngine.ingestVideo(file);
+    videoInput.value = '';
+  });
+
+  imageInput.addEventListener('change', async (event) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    await bubblesEngine.ingestImage(file);
+    imageInput.value = '';
   });
 
   viewport.addEventListener('click', handlePointer);
