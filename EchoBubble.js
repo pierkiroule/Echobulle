@@ -70,7 +70,12 @@ export function createEchoBubble(root) {
     const rect = viewport.getBoundingClientRect();
     const x = event.clientX - rect.left;
     const y = event.clientY - rect.top;
-    bubblesEngine.impulse(x, y);
+    const toggled = bubblesEngine.toggleFocusAt(x, y);
+    if (!toggled) {
+      bubblesEngine.impulse(x, y);
+    } else {
+      bubblesEngine.spawnFx(x, y, state.snapshot.pulse + 0.1);
+    }
     state.nudgePulse(0.04);
     audioEngine.resume();
   }

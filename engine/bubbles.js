@@ -1,16 +1,18 @@
 import { VideoClip } from 'mediabunny';
 
 const PALETTE = ['#8acbff', '#a3a6ff', '#ffdca8', '#f2a6ff', '#9ff3e0'];
-const BASE_RADIUS = 56;
+const BASE_RADIUS = 38;
 const GIF_MIN = 3;
 const GIF_MAX = 7;
 const GIF_FRAMES = 14;
 const FRICTION = 0.984;
 const BOUNCE_DAMPING = 0.9;
-const PARTICLE_COUNT = 140;
+const PARTICLE_COUNT = 160;
 const PARTICLE_DECAY = 0.986;
 const FIELD_SCALE = 0.0008;
 const MAX_BUBBLES = 32;
+const FOCUS_GROWTH = 1.6;
+const FX_LIFE = 1800;
 
 function randomRange(min, max) {
   return Math.random() * (max - min) + min;
@@ -19,6 +21,8 @@ function randomRange(min, max) {
 function createBubble(radius) {
   return {
     radius,
+    targetRadius: radius,
+    baseRadius: radius,
     x: 0,
     y: 0,
     vx: randomRange(-0.25, 0.25),
@@ -30,6 +34,12 @@ function createBubble(radius) {
     frames: null,
     frameOffset: Math.floor(Math.random() * GIF_FRAMES),
     sourceId: '',
+    focused: false,
+    homeX: 0,
+    homeY: 0,
+    homeRadius: radius,
+    targetX: 0,
+    targetY: 0,
   };
 }
 
@@ -53,6 +63,12 @@ function placeBubbles(bubbles, width, height) {
       b.x = width * 0.5 + randomRange(-60, 60);
       b.y = height * 0.5 + randomRange(-60, 60);
     }
+    b.homeX = b.x;
+    b.homeY = b.y;
+    b.homeRadius = b.radius;
+    b.targetRadius = b.radius;
+    b.targetX = b.x;
+    b.targetY = b.y;
   });
 }
 
@@ -148,7 +164,7 @@ async function videoFragmentsFromFile(file) {
     const start = randomRange(0, Math.max(0.2, duration - 0.6));
     const windowSize = randomRange(0.4, 1.8);
     const frames = [];
-    const radius = randomRange(42, 76);
+    const radius = randomRange(30, 58);
     const sw = Math.max(48, video.videoWidth * randomRange(0.22, 0.48));
     const sh = Math.max(48, video.videoHeight * randomRange(0.22, 0.48));
     const sx = randomRange(0, Math.max(1, video.videoWidth - sw));
@@ -188,6 +204,7 @@ export function createBubblesEngine(state) {
   let bubbles = [];
   let bounds = { width: 600, height: 600 };
   let fragments = [];
+  const fx = [];
   const particles = new Array(PARTICLE_COUNT).fill(null).map(() => ({
     x: Math.random() * bounds.width,
     y: Math.random() * bounds.height,
@@ -200,6 +217,7 @@ export function createBubblesEngine(state) {
   function reset() {
     bubbles = [];
     fragments = [];
+    fx.length = 0;
     particles.forEach((p) => {
       p.x = Math.random() * bounds.width;
       p.y = Math.random() * bounds.height;
@@ -273,18 +291,82 @@ export function createBubblesEngine(state) {
     placeBubbles(bubbles, bounds.width, bounds.height);
   }
 
+  function findBubbleAt(x, y) {
+    let hit = null;
+    bubbles.forEach((b) => {
+      const dx = x - b.x;
+      const dy = y - b.y;
+      const dist = Math.hypot(dx, dy);
+      if (dist <= b.radius && (!hit || dist < hit.dist)) {
+        hit = { bubble: b, dist };
+      }
+    });
+    return hit?.bubble || null;
+  }
+
+  function releaseFocus(bubble) {
+    bubble.focused = false;
+    bubble.targetRadius = bubble.homeRadius;
+    bubble.targetX = bubble.homeX;
+    bubble.targetY = bubble.homeY;
+  }
+
+  function focusBubble(bubble) {
+    bubbles.forEach((b) => {
+      if (b.focused && b !== bubble) releaseFocus(b);
+    });
+    bubble.focused = true;
+    bubble.targetRadius = bubble.homeRadius * FOCUS_GROWTH;
+    bubble.targetX = bounds.width * 0.5;
+    bubble.targetY = bounds.height * 0.5;
+  }
+
+  function toggleFocusAt(x, y) {
+    const hit = findBubbleAt(x, y);
+    if (!hit) return false;
+    if (hit.focused) {
+      releaseFocus(hit);
+    } else {
+      focusBubble(hit);
+    }
+    return true;
+  }
+
+  function spawnFx(x, y, energy = 0.4) {
+    fx.push({
+      x,
+      y,
+      birth: performance.now(),
+      energy,
+      hue: randomRange(180, 240),
+    });
+    if (fx.length > 16) fx.shift();
+  }
+
   function update(timestamp, pulse) {
     const t = timestamp * 0.001;
     bubbles.forEach((b, idx) => {
+      b.radius = lerp(b.radius, b.targetRadius, 0.08);
       const flowX = Math.sin(t * 0.35 + b.pulsePhase) + Math.cos((b.y * FIELD_SCALE + t * 0.2));
       const flowY = Math.cos(t * 0.38 + b.pulsePhase) - Math.sin((b.x * FIELD_SCALE + t * 0.22));
       b.vx += flowX * 0.006 * (0.6 + pulse * 0.8);
       b.vy += flowY * 0.0065 * (0.6 + pulse * 0.8);
-      b.vx *= FRICTION;
-      b.vy *= FRICTION;
-      b.x += b.vx;
-      b.y += b.vy;
+      b.vx *= b.focused ? FRICTION * 0.9 : FRICTION;
+      b.vy *= b.focused ? FRICTION * 0.9 : FRICTION;
+      if (b.focused) {
+        const tx = b.targetX ?? bounds.width * 0.5;
+        const ty = b.targetY ?? bounds.height * 0.5;
+        b.x += b.vx + (tx - b.x) * 0.08;
+        b.y += b.vy + (ty - b.y) * 0.08;
+      } else {
+        b.x += b.vx;
+        b.y += b.vy;
+      }
       applyBounds(b);
+      if (!b.focused) {
+        b.homeX = lerp(b.homeX, b.x, 0.02);
+        b.homeY = lerp(b.homeY, b.y, 0.02);
+      }
       for (let j = idx + 1; j < bubbles.length; j += 1) {
         resolveCollision(b, bubbles[j]);
       }
@@ -325,6 +407,29 @@ export function createBubblesEngine(state) {
     ctx.restore();
   }
 
+  function drawFx(ctx, pulse) {
+    const now = performance.now();
+    for (let i = fx.length - 1; i >= 0; i -= 1) {
+      const f = fx[i];
+      const t = (now - f.birth) / FX_LIFE;
+      if (t >= 1) {
+        fx.splice(i, 1);
+        continue;
+      }
+      const alpha = (1 - t) * (0.5 + f.energy * 0.4 + pulse * 0.35);
+      const radius = 18 + t * (160 + f.energy * 120);
+      const wobble = 1 + Math.sin(t * Math.PI * 2 + f.energy * 6) * 0.02;
+      ctx.save();
+      ctx.globalCompositeOperation = 'screen';
+      ctx.strokeStyle = `hsla(${f.hue}, 86%, ${68 + pulse * 10}%, ${alpha})`;
+      ctx.lineWidth = 2.4 + pulse * 1.8;
+      ctx.beginPath();
+      ctx.arc(f.x, f.y, radius * wobble, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.restore();
+    }
+  }
+
   function drawBubble(ctx, bubble, timestamp, pulse) {
     const wobble = 1 + Math.sin(timestamp * 0.002 + bubble.pulsePhase) * 0.5;
     const alpha = 0.9 + Math.sin(timestamp * 0.0012 + bubble.opacityPhase) * 0.05;
@@ -359,10 +464,16 @@ export function createBubblesEngine(state) {
     ctx.fillStyle = 'rgba(5, 7, 12, 0.1)';
     ctx.fillRect(0, 0, bounds.width, bounds.height);
     drawParticles(ctx, timestamp, pulse);
-    bubbles.forEach((bubble) => drawBubble(ctx, bubble, timestamp, pulse));
+    drawFx(ctx, pulse);
+    const ordered = [...bubbles].sort((a, b) => {
+      if (a.focused === b.focused) return 0;
+      return a.focused ? 1 : -1;
+    });
+    ordered.forEach((bubble) => drawBubble(ctx, bubble, timestamp, pulse));
   }
 
   function impulse(x, y) {
+    spawnFx(x, y, state.snapshot.pulse);
     bubbles.forEach((b) => {
       const dx = b.x - x;
       const dy = b.y - y;
@@ -393,5 +504,9 @@ export function createBubblesEngine(state) {
     rebuildBubbles();
   }
 
-  return { setBounds, update, draw, reset, impulse, ingestVideo };
+  return { setBounds, update, draw, reset, impulse, ingestVideo, toggleFocusAt, spawnFx };
+}
+
+function lerp(current, target, factor) {
+  return current + (target - current) * factor;
 }
