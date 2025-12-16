@@ -3,13 +3,13 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>ÉchoBulle — POC transmedia local</title>
+    <title>ÉchoBulle — hublot audiovisuel</title>
     <style>
       :root {
         color-scheme: dark;
-        --bg: #0a0c10;
-        --fg: #e6e7eb;
-        --accent: #6ad5ff;
+        --bg: #06070b;
+        --fg: #eef0f6;
+        --accent: #7ad2ff;
       }
 
       * {
@@ -19,7 +19,7 @@
       body {
         margin: 0;
         min-height: 100vh;
-        background: radial-gradient(circle at 25% 20%, #111827, #0a0c10 50%);
+        background: radial-gradient(circle at 20% 15%, #101727, #06070b 55%);
         color: var(--fg);
         font-family: "Inter", "SF Pro Text", system-ui, -apple-system, sans-serif;
         display: flex;
@@ -31,18 +31,18 @@
       .shell {
         width: min(960px, 100%);
         display: grid;
-        gap: 24px;
+        gap: 20px;
         justify-items: center;
       }
 
       .viewport {
-        width: min(70vw, 520px);
+        width: min(72vw, 540px);
         aspect-ratio: 1 / 1;
         border-radius: 50%;
         overflow: hidden;
-        border: 2px solid rgba(255, 255, 255, 0.15);
-        box-shadow: 0 24px 80px rgba(0, 0, 0, 0.55), inset 0 0 80px rgba(106, 213, 255, 0.05);
-        background: linear-gradient(145deg, #06070b, #0f1624);
+        border: 2px solid rgba(255, 255, 255, 0.18);
+        box-shadow: 0 24px 90px rgba(0, 0, 0, 0.6), inset 0 0 80px rgba(122, 210, 255, 0.08);
+        background: linear-gradient(145deg, #070a12, #0f1520);
         position: relative;
       }
 
@@ -56,7 +56,7 @@
 
       .controls {
         display: flex;
-        gap: 12px;
+        gap: 10px;
         flex-wrap: wrap;
         justify-content: center;
       }
@@ -65,8 +65,8 @@
         appearance: none;
         border: 1px solid rgba(255, 255, 255, 0.18);
         color: var(--fg);
-        background: linear-gradient(135deg, rgba(106, 213, 255, 0.18), rgba(255, 255, 255, 0.03));
-        padding: 12px 18px;
+        background: linear-gradient(135deg, rgba(122, 210, 255, 0.22), rgba(255, 255, 255, 0.04));
+        padding: 12px 16px;
         border-radius: 999px;
         letter-spacing: 0.03em;
         font-size: 14px;
@@ -77,7 +77,7 @@
       button:hover {
         transform: translateY(-1px);
         border-color: rgba(255, 255, 255, 0.36);
-        box-shadow: 0 12px 40px rgba(106, 213, 255, 0.15);
+        box-shadow: 0 12px 40px rgba(122, 210, 255, 0.2);
       }
 
       button:active {
@@ -86,7 +86,7 @@
 
       .hint {
         font-size: 12px;
-        opacity: 0.7;
+        opacity: 0.76;
         text-align: center;
         max-width: 620px;
         line-height: 1.5;
@@ -102,11 +102,12 @@
         <button id="import-audio">Importer MP3</button>
         <button id="import-video">Importer MP4</button>
         <button id="import-images">Importer images</button>
+        <button id="capture">Capture PNG</button>
         <button id="reset-all">Stop / Reset</button>
       </div>
       <div class="hint">
-        Le son démarre après interaction. Charge un MP3, un MP4 et des images locales pour mixer en boucle. Si un média manque,
-        le hublot reste silencieux, noir ou sans overlay.
+        Prototype frugal : tout est local. Charge un MP3, un MP4 et quelques images pour un bain double-exposition. Le hublot
+        écoute le souffle (taps / drags), les particules dérivent lentement. Capture exporte une image PNG du moment.
       </div>
     </div>
 

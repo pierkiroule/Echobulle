@@ -1,62 +1,61 @@
+const DEFAULT_TAGS = ['bulle', 'souffle', 'lenteur', 'halo', 'onde', 'flux'];
+const DEFAULT_EMOJIS = ['●', '○', '◐', '◑', '◒', '◓'];
+
 export function createState() {
   const state = {
-    audioLoaded: false,
-    videoLoaded: false,
-    playingAudio: false,
-    playingVideo: false,
-    lastAudioName: null,
-    lastVideoName: null,
-    imagesLoaded: 0,
-    touches: 0,
     pulse: 0.4,
+    energy: 0,
+    exposureMode: 'screen',
+    reverse: false,
+    fadeBlack: 0,
+    imagesLoaded: 0,
+    turbulence: { x: 0, y: 0, decay: 0.92 },
+    tags: [...DEFAULT_TAGS],
+    emojis: [...DEFAULT_EMOJIS],
   };
 
   return {
     get snapshot() {
-      return { ...state };
+      return { ...state, turbulence: { ...state.turbulence } };
     },
-    markAudioLoaded(name) {
-      state.audioLoaded = true;
-      state.lastAudioName = name;
-      state.playingAudio = true;
-    },
-    markVideoLoaded(name) {
-      state.videoLoaded = true;
-      state.lastVideoName = name;
-      state.playingVideo = true;
-    },
-    markAudioStopped() {
-      state.playingAudio = false;
-    },
-    markVideoStopped() {
-      state.playingVideo = false;
-    },
-    markParticlesTicked() {
-      state.touches += 1;
-    },
-    markImagesLoaded(count) {
-      state.imagesLoaded = count;
-    },
-    nudgePulse(delta) {
-      state.pulse = Math.min(1.4, Math.max(0.12, state.pulse + delta));
+    setEnergy(value) {
+      state.energy = value;
     },
     smoothPulse(target, factor = 0.03) {
-      const next = state.pulse + (target - state.pulse) * factor;
-      state.pulse = Math.min(1.4, Math.max(0.12, next));
+      state.pulse = Math.min(1.25, Math.max(0.1, state.pulse + (target - state.pulse) * factor));
     },
-    resetPulse() {
-      state.pulse = 0.4;
+    nudgePulse(delta) {
+      state.pulse = Math.min(1.25, Math.max(0.1, state.pulse + delta));
+    },
+    setExposureMode(mode) {
+      state.exposureMode = mode;
+    },
+    toggleReverse() {
+      state.reverse = !state.reverse;
+    },
+    setFade(value) {
+      state.fadeBlack = Math.max(0, Math.min(1, value));
+    },
+    markImages(count) {
+      state.imagesLoaded = count;
+    },
+    pushTurbulence(x, y) {
+      state.turbulence.x = x;
+      state.turbulence.y = y;
+      state.turbulence.decay = 0.9;
+    },
+    decayTurbulence() {
+      state.turbulence.x *= state.turbulence.decay;
+      state.turbulence.y *= state.turbulence.decay;
+      state.turbulence.decay = 0.9 + (state.turbulence.decay - 0.9) * 0.96;
     },
     reset() {
-      state.audioLoaded = false;
-      state.videoLoaded = false;
-      state.playingAudio = false;
-      state.playingVideo = false;
-      state.lastAudioName = null;
-      state.lastVideoName = null;
-      state.imagesLoaded = 0;
-      state.touches = 0;
       state.pulse = 0.4;
+      state.energy = 0;
+      state.reverse = false;
+      state.fadeBlack = 0;
+      state.imagesLoaded = 0;
+      state.turbulence = { x: 0, y: 0, decay: 0.92 };
     },
   };
 }

@@ -1,21 +1,16 @@
-# ÉchoBulle — POC transmédia local
-Ceci est un prototype frugal pour tester le cœur multimédia d’ÉchoBulle.
-Objectif V1 : vérifier que l’audio MP3 et la vidéo MP4 tournent ensemble, en boucle, sans dépendance externe.
+# ÉchoBulle — hublot audiovisuel local
+Ceci est un prototype frugal pour tester le cœur multimédia d’ÉchoBulle : tout fonctionne hors ligne, sans IA ni cloud.
 
-## Mode d’emploi
-1. Ouvre `index.html` dans un navigateur mobile ou desktop.
-2. Clique sur « Importer MP3 » puis « Importer MP4 » (fichiers locaux).
-3. Les deux médias jouent en boucle dans le hublot circulaire. Le bouton « Stop / Reset » remet à zéro.
-4. Si un média manque, le hublot reste silencieux ou noir. Aucune IA, aucun réseau, aucun backend.
-5. L’export/capture sera branché plus tard : le code expose déjà les moteurs audio/vidéo pour y accrocher une capture locale.
+## Concept
+Un hublot circulaire unique, tout en canvas :
+- vidéo MP4 dessinée image par image via MediaBunny
+- audio MP3 lu en boucle et analysé (pulse harmonique doux)
+- images importées fondues en double exposition (`screen`, `lighter`, etc.)
+- particules de tags et d’emojis flottants, influencés par souffle / drag
+- capture PNG d’un instantané (capture vidéo 15 s prête à être branchée)
 
-## V2 — Paysage visuel vivant
-Cette version garde le hublot unique mais passe tout dans un seul canvas :
-- La vidéo MP4 est dessinée puis mélangée aux images importées via `globalCompositeOperation` (modes écran, lighter...).
-- Les images (PNG/JPG) défilent en fondu doux avec rotation lente, en double exposition au-dessus de la vidéo.
-- Les particules abstraites restent au-dessus, légères et hypnotiques. Le tout reste local, frugal et sans dépendance externe.
+## Usage
+Ouvre `index.html` dans un navigateur mobile ou desktop (Termux + Acode inclus). Importer un MP3, un MP4, puis des images.
+Taper / glisser dans le hublot pour souffler sur les particules, la pulse reste lente et apaisée. Bouton Capture exporte une image.
 
-## V2 bis — Pulse harmonique
-- Un `pulse` maître (0.4 par défaut) est lissé depuis l’énergie audio moyenne et sert de tempo unique.
-- Les attracteurs (émojis) orbitent lentement selon ce pulse, les particules/tag y dérivent sans collisions brusques.
-- Les filtres audio (gain + passe-bas) suivent aussi le pulse pour garder un souffle doux et cohérent.
+> “Ceci est un prototype frugal pour tester le cœur multimédia d’ÉchoBulle.”

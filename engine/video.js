@@ -1,109 +1,61 @@
+import { BunnyEngine, VideoClip } from 'mediabunny';
+
 export function createVideoEngine(state) {
-  const videoEl = document.createElement('video');
-  videoEl.muted = true;
-  videoEl.loop = true;
-  videoEl.playsInline = true;
-  videoEl.preload = 'auto';
-  videoEl.crossOrigin = 'anonymous';
-  videoEl.style.display = 'none';
-  document.body.appendChild(videoEl);
+  const bunny = new BunnyEngine();
+  const video = document.createElement('video');
+  video.muted = true;
+  video.loop = true;
+  video.playsInline = true;
+  video.crossOrigin = 'anonymous';
+  video.preload = 'auto';
 
-  let currentUrl = null;
   let ready = false;
-
-  function reset() {
-    ready = false;
-    videoEl.pause();
-    videoEl.removeAttribute('src');
-    videoEl.load();
-    if (currentUrl) {
-      URL.revokeObjectURL(currentUrl);
-      currentUrl = null;
-    }
-    state.markVideoStopped();
-  }
+  let clip = null;
+  let lastTime = 0;
 
   async function loadFile(file) {
-    reset();
-    currentUrl = URL.createObjectURL(file);
-    videoEl.src = currentUrl;
-
-    return new Promise((resolve, reject) => {
-      const onLoaded = () => {
-        ready = true;
-        // Make the first frame available even if autoplay is blocked.
-        videoEl.currentTime = 0;
-        state.markVideoLoaded(file.name);
-        cleanup();
-        // Attempt playback but do not treat a blocked promise as fatal.
-        videoEl.play().catch(() => {});
-        resolve();
-      };
-
-      const onError = (error) => {
-        cleanup();
-        reject(error);
-      };
-
-      const cleanup = () => {
-        videoEl.removeEventListener('loadeddata', onLoaded);
-        videoEl.removeEventListener('error', onError);
-      };
-
-      videoEl.addEventListener('loadeddata', onLoaded);
-      videoEl.addEventListener('error', onError);
-      videoEl.load();
-    });
-  }
-
-  function isReady() {
-    return ready && videoEl.videoWidth > 0 && videoEl.readyState >= 2;
+    clip = new VideoClip(file);
+    const src = clip.src || URL.createObjectURL(file);
+    video.src = src;
+    ready = false;
+    await video.play().catch(() => {});
+    video.pause();
+    video.addEventListener('loadeddata', () => {
+      ready = true;
+    }, { once: true });
   }
 
   function resume() {
-    if (!isReady()) return;
-    videoEl.play().catch(() => {});
+    if (!ready) return;
+    video.play().catch(() => {});
   }
 
-  function draw(ctx, width, height) {
-    if (!isReady()) return;
-
-    const vw = videoEl.videoWidth;
-    const vh = videoEl.videoHeight;
-    if (!vw || !vh) return;
-
-    const videoRatio = vw / vh;
-    const canvasRatio = width / height;
-
-    let drawWidth = width;
-    let drawHeight = height;
-    let dx = 0;
-    let dy = 0;
-
-    if (videoRatio > canvasRatio) {
-      drawHeight = height;
-      drawWidth = height * videoRatio;
-      dx = -(drawWidth - width) / 2;
-    } else {
-      drawWidth = width;
-      drawHeight = width / videoRatio;
-      dy = -(drawHeight - height) / 2;
+  function draw(ctx, width, height, timestamp) {
+    if (!ready || video.readyState < 2) return;
+    const dt = lastTime ? (timestamp - lastTime) / 1000 : 0;
+    lastTime = timestamp;
+    if (state.snapshot.reverse && dt > 0) {
+      const back = Math.max(0, video.currentTime - dt);
+      video.currentTime = back;
+      if (back <= 0) {
+        video.currentTime = Math.max(0, video.duration - 0.05);
+      }
     }
-
-    ctx.drawImage(videoEl, dx, dy, drawWidth, drawHeight);
+    ctx.globalCompositeOperation = 'source-over';
+    ctx.drawImage(video, 0, 0, width, height);
+    if (state.snapshot.fadeBlack > 0.001) {
+      ctx.fillStyle = `rgba(0,0,0,${state.snapshot.fadeBlack})`;
+      ctx.fillRect(0, 0, width, height);
+    }
   }
 
-  return {
-    loadFile,
-    reset,
-    isReady,
-    draw,
-    resume,
-    get element() {
-      return videoEl;
-    },
-    get currentUrl() {
-      return currentUrl;
-    },
-  };
+  function reset() {
+    ready = false;
+    lastTime = 0;
+    clip = null;
+    video.pause();
+    video.removeAttribute('src');
+  }
+
+  return { loadFile, draw, resume, reset, get element() { return video; } };
 }

@@ -1,116 +1,102 @@
-let audioContext;
+import { BunnyEngine, AudioClip } from 'mediabunny';
+
+const FALLBACK_GAIN = 0.25;
 
 export function createAudioEngine(state) {
-  let buffer = null;
-  let source = null;
-  let analyser = null;
-  let gain = null;
-  let filter = null;
-  let energyBuffer = new Uint8Array(0);
+  const bunny = new BunnyEngine();
+  const context = bunny.audioContext || new (window.AudioContext || window.webkitAudioContext)();
+  const analyser = context.createAnalyser();
+  analyser.fftSize = 1024;
+  const energyBuffer = new Uint8Array(analyser.frequencyBinCount);
+  const gain = context.createGain();
+  gain.gain.value = FALLBACK_GAIN;
+  const filter = context.createBiquadFilter();
+  filter.type = 'lowpass';
+  filter.frequency.value = 1200;
+  let media = null;
+  let clip = null;
+  let sourceNode = null;
   let lastEnergy = 0.4;
 
-  async function ensureContext() {
-    if (!audioContext) {
-      audioContext = new (window.AudioContext || window.webkitAudioContext)();
+  gain.connect(filter);
+  filter.connect(analyser);
+  analyser.connect(context.destination);
+
+  function connect(mediaEl) {
+    if (sourceNode) {
+      sourceNode.disconnect();
+      sourceNode = null;
     }
-    if (audioContext.state === 'suspended') {
-      await audioContext.resume();
-    }
-  }
-
-  function createNodes() {
-    if (!audioContext) return;
-    gain = audioContext.createGain();
-    gain.gain.value = 0.3;
-
-    filter = audioContext.createBiquadFilter();
-    filter.type = 'lowpass';
-    filter.frequency.value = 1400;
-
-    analyser = audioContext.createAnalyser();
-    analyser.fftSize = 512;
-    energyBuffer = new Uint8Array(analyser.frequencyBinCount);
-  }
-
-  function stop() {
-    if (source) {
-      source.stop(0);
-      source.disconnect();
-      source = null;
-    }
-    state.markAudioStopped();
+    sourceNode = context.createMediaElementSource(mediaEl);
+    sourceNode.connect(gain);
   }
 
   async function loadFile(file) {
-    await ensureContext();
-    if (!analyser) {
-      createNodes();
+    clip = new AudioClip(file);
+    const mediaElement = clip.mediaElement || new Audio();
+    mediaElement.src = clip.src || URL.createObjectURL(file);
+    mediaElement.loop = true;
+    mediaElement.crossOrigin = 'anonymous';
+    mediaElement.preload = 'auto';
+    mediaElement.volume = 0.65;
+    media = mediaElement;
+    connect(mediaElement);
+    await mediaElement.play().catch(() => {});
+    state.nudgePulse(0.05);
+  }
+
+  function resume() {
+    if (context.state === 'suspended') {
+      context.resume();
     }
-    const data = await file.arrayBuffer();
-    buffer = await audioContext.decodeAudioData(data);
-    stop();
-    source = audioContext.createBufferSource();
-    source.buffer = buffer;
-    source.loop = true;
-    source.connect(gain);
-    gain.connect(filter);
-    filter.connect(analyser);
-    analyser.connect(audioContext.destination);
-    source.start();
-    state.markAudioLoaded(file.name);
+    if (media && media.paused) {
+      media.play().catch(() => {});
+    }
   }
 
   function sampleEnergy() {
-    if (!analyser || audioContext?.state !== 'running') {
-      return lastEnergy;
-    }
+    if (!media) return lastEnergy;
+    if (context.state !== 'running') return lastEnergy;
     analyser.getByteTimeDomainData(energyBuffer);
     let sum = 0;
     for (let i = 0; i < energyBuffer.length; i += 1) {
-      const v = (energyBuffer[i] - 128) / 128;
-      sum += v * v;
+      const val = (energyBuffer[i] - 128) / 128;
+      sum += val * val;
     }
     const rms = Math.sqrt(sum / energyBuffer.length);
-    lastEnergy = Math.min(1, 0.15 + rms * 1.8);
+    lastEnergy = Math.min(1, 0.15 + rms * 1.6);
+    state.setEnergy(lastEnergy);
     return lastEnergy;
   }
 
   function applyPulse(pulse) {
-    if (!gain || !filter) return;
-    gain.gain.value = 0.3 + pulse * 0.2;
-    filter.frequency.value = 400 + pulse * 1200;
+    gain.gain.value = FALLBACK_GAIN + pulse * 0.25;
+    filter.frequency.value = 400 + pulse * 1400;
+  }
+
+  function stop() {
+    if (media) {
+      media.pause();
+      media.currentTime = 0;
+    }
   }
 
   function reset() {
     stop();
-    buffer = null;
+    clip = null;
+    media = null;
     lastEnergy = 0.4;
-    if (gain) {
-      gain.disconnect();
-      gain = null;
-    }
-    if (filter) {
-      filter.disconnect();
-      filter = null;
-    }
-    if (analyser) {
-      analyser.disconnect();
-      analyser = null;
-    }
-    energyBuffer = new Uint8Array(0);
   }
 
   return {
     loadFile,
-    stop,
-    reset,
+    resume,
     sampleEnergy,
     applyPulse,
+    stop,
+    reset,
     get context() {
-      return audioContext;
-    },
-    get currentBuffer() {
-      return buffer;
+      return context;
     },
   };
 }

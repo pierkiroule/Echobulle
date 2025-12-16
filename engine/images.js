@@ -1,113 +1,67 @@
+const MAX_IMAGES = 12;
+
+function loadImage(file) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = () => resolve(img);
+    img.onerror = reject;
+    img.src = URL.createObjectURL(file);
+  });
+}
+
 export function createImagesEngine(state) {
-  let items = [];
-  let index = 0;
-  let transitionStart = 0;
-  let showing = false;
-  let switching = false;
-  let switchDelay = 8000;
-  let fadeDuration = 800;
+  let images = [];
+  let currentIndex = 0;
   let lastSwitch = 0;
+  const holdTime = 4500;
+  const fadeTime = 1200;
 
-  function revokeAll() {
-    items.forEach((item) => URL.revokeObjectURL(item.url));
+  async function loadFiles(fileList) {
+    const files = Array.from(fileList).slice(0, MAX_IMAGES);
+    const loaded = await Promise.all(files.map(loadImage));
+    images = loaded;
+    currentIndex = 0;
+    lastSwitch = performance.now();
+    state.markImages(images.length);
   }
 
-  function loadFiles(fileList) {
-    revokeAll();
-    const files = Array.from(fileList || []).filter((file) => file.type.startsWith('image/'));
-    items = files.map((file) => ({
-      name: file.name,
-      url: URL.createObjectURL(file),
-      img: null,
-      ready: false,
-      scale: 0.6 + Math.random() * 0.5,
-      rotation: (Math.random() - 0.5) * 12,
-    }));
-    index = 0;
-    showing = false;
-    switching = false;
-    transitionStart = 0;
-    lastSwitch = 0;
-
-    if (items.length === 0) return;
-
-    items.forEach((item) => {
-      const image = new Image();
-      image.crossOrigin = 'anonymous';
-      image.onload = () => {
-        item.img = image;
-        item.ready = true;
-      };
-      image.src = item.url;
-    });
-
-    state.markImagesLoaded(items.length);
-  }
-
-  function update(timestamp, pulse) {
-    if (items.length === 0) return;
-
-    if (!showing) {
-      showing = true;
-      transitionStart = timestamp;
-      lastSwitch = timestamp;
-      return;
-    }
-
+  function currentImage(timestamp) {
+    if (images.length === 0) return null;
     const elapsed = timestamp - lastSwitch;
-    if (elapsed > switchDelay && items.length > 1) {
-      index = (index + 1) % items.length;
-      transitionStart = timestamp;
+    if (elapsed > holdTime + fadeTime) {
+      currentIndex = (currentIndex + 1) % images.length;
       lastSwitch = timestamp;
-      switching = true;
     }
-
-    if (switching && timestamp - transitionStart > fadeDuration) {
-      switching = false;
-    }
+    return images[currentIndex] || null;
   }
 
   function draw(ctx, width, height, timestamp, pulse) {
-    if (items.length === 0) return;
-    const current = items[index];
-    if (!current.img || !current.ready || !current.img.complete) return;
-
-    const fadeProgress = Math.min(1, (timestamp - transitionStart) / fadeDuration);
-    const alphaBase = switching ? 1 - fadeProgress * 0.3 : Math.min(0.75, 0.3 + fadeProgress);
-    const alpha = alphaBase * (0.7 + pulse * 0.4);
-
-    const iw = current.img.width;
-    const ih = current.img.height;
-    if (!iw || !ih) return;
-
-    const baseScale = Math.min(width / iw, height / ih) * current.scale;
-    const drawW = iw * baseScale;
-    const drawH = ih * baseScale;
-
+    const img = currentImage(timestamp);
+    if (!img) return;
+    const elapsed = timestamp - lastSwitch;
+    const fade = Math.min(1, elapsed / fadeTime);
+    const alpha = 0.35 + 0.35 * fade + pulse * 0.15;
     ctx.save();
+    ctx.globalAlpha = Math.min(0.9, alpha);
+    const scale = 0.9 + Math.sin(timestamp * 0.0002 + pulse) * 0.06;
+    const w = width * scale;
+    const h = height * scale;
+    const x = (width - w) / 2;
+    const y = (height - h) / 2;
     ctx.translate(width / 2, height / 2);
-    const rotationPulse = current.rotation + Math.sin(timestamp * 0.00015) * 6 * pulse;
-    ctx.rotate((rotationPulse * Math.PI) / 180);
-    ctx.globalAlpha = alpha;
-    ctx.drawImage(current.img, -drawW / 2, -drawH / 2, drawW, drawH);
-    ctx.globalAlpha = 1;
+    ctx.rotate(0.02 * Math.sin(timestamp * 0.0001));
+    ctx.translate(-width / 2, -height / 2);
+    ctx.drawImage(img, x, y, w, h);
     ctx.restore();
   }
 
   function reset() {
-    revokeAll();
-    items = [];
-    index = 0;
-    showing = false;
-    switching = false;
-    transitionStart = 0;
+    images = [];
+    currentIndex = 0;
     lastSwitch = 0;
+    state.markImages(0);
   }
 
-  return {
-    loadFiles,
-    update,
-    draw,
-    reset,
-  };
+  return { loadFiles, draw, reset };
 }
